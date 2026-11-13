@@ -379,6 +379,32 @@
   }
   .shared-answer video, .shared-answer audio{width:100%; border-radius:10px; display:block; background:#000;}
 
+  /* ---------- Open when / Photo drop ---------- */
+  .openwhen-wrap, .photodrop-wrap{ padding-top:1.4rem; }
+  .field-plain{ margin-bottom:1rem; }
+  .field-plain label{ display:block; font-size:.78rem; color:var(--muted-dim); margin-bottom:.5rem; }
+  .field-plain input[type=text]{
+    text-align:left; font-family:'Inter',sans-serif; font-size:.92rem; font-weight:400;
+    border:1px solid var(--line); border-radius:10px; padding:.75rem .9rem; background:var(--bg-elevated);
+  }
+  .field-plain input[type=text]:focus{ border-color:var(--accent); }
+  .btn.block{ width:100%; justify-content:center; padding:1rem; font-size:.96rem; }
+  .dropzone-public{
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    border:2px dashed var(--line); border-radius:12px; padding:1.5rem; cursor:pointer;
+    color:var(--muted-dim); font-size:.9rem; margin-bottom:1rem; transition:border-color .2s, color .2s;
+  }
+  .dropzone-public:hover{ border-color:var(--accent); color:var(--muted); }
+  .done.small{ text-align:center; padding:1.6rem 0; }
+  .done.small p{ font-family:'Fraunces',serif; font-style:italic; color:var(--muted); font-size:1rem; }
+
+  /* ---------- Photos from friends (approved) ---------- */
+  .pshare-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:.7rem; }
+  @media (min-width:600px){ .pshare-grid{ grid-template-columns:repeat(3, 1fr); } }
+  .pshare-card{ border-radius:12px; overflow:hidden; background:var(--card); border:1px solid var(--line-soft); }
+  .pshare-card img{ width:100%; aspect-ratio:1; object-fit:cover; display:block; }
+  .pshare-cap{ padding:.5rem .6rem; font-size:.74rem; color:var(--muted-dim); font-style:italic; }
+
   /* ---------- Submit ---------- */
   .submit-row{padding-top:.6rem; text-align:center;}
   .submit-row .btn.primary{width:100%; justify-content:center; padding:1rem; font-size:.98rem; letter-spacing:.01em;}
@@ -456,6 +482,48 @@
     <h2 id="txt-doneheading">Got it. Thank you.</h2>
     <p id="txt-donebody">This means more than you know. See you before I'm fully gone — and definitely before I'm back.</p>
   </div>
+
+  <section class="openwhen-wrap reveal">
+    <div class="divider"><span class="line"></span><span class="mark">✦</span><span class="line"></span></div>
+    <h2 class="shared-heading">Leave something for later</h2>
+    <p class="shared-sub">a note I'm not supposed to read yet — I won't, until it's time</p>
+    <form id="openWhenForm">
+      <div class="field-plain">
+        <label for="owTrigger">Open when...</label>
+        <input type="text" id="owTrigger" placeholder="you're missing New York / it's been a year / you need a laugh">
+      </div>
+      <div class="qcard" data-qid="openwhen">
+        <div class="modes" role="group" aria-label="How do you want to answer"></div>
+        <div class="mode-panel"></div>
+      </div>
+      <button type="submit" class="btn primary block" id="owSubmitBtn">Seal it</button>
+      <p class="status" id="owStatus"></p>
+    </form>
+    <div class="done small" id="owDone" hidden><p>Sealed. I won't look until it's time.</p></div>
+  </section>
+
+  <section class="photodrop-wrap reveal">
+    <div class="divider"><span class="line"></span><span class="mark">✦</span><span class="line"></span></div>
+    <h2 class="shared-heading">Got a photo of me I've never seen?</h2>
+    <p class="shared-sub">drop it here — I decide what goes public, the rest stays just for me</p>
+    <form id="photoDropForm">
+      <label class="dropzone-public" id="pdDropzone">
+        <input type="file" id="pdFileInput" accept="image/*" hidden>
+        <span id="pdDzText">Tap to choose a photo</span>
+      </label>
+      <div class="field-plain"><input type="text" id="pdCaption" placeholder="caption (optional)"></div>
+      <button type="submit" class="btn primary block" id="pdSubmitBtn">Send the photo</button>
+      <p class="status" id="pdStatus"></p>
+    </form>
+    <div class="done small" id="pdDone" hidden><p>Got it. Thank you.</p></div>
+  </section>
+
+  <section class="photoshare-wrap reveal" id="photoShareSection" hidden>
+    <div class="divider"><span class="line"></span><span class="mark">✦</span><span class="line"></span></div>
+    <h2 class="shared-heading">Photos from friends</h2>
+    <p class="shared-sub">things people saw that I never got a copy of</p>
+    <div class="pshare-grid" id="photoShareGrid"></div>
+  </section>
 
   <section class="shared-wrap reveal" id="sharedSection" hidden>
     <div class="divider"><span class="line"></span><span class="mark">✦</span><span class="line"></span></div>
@@ -665,8 +733,11 @@
   }
 
   function buildQuestionsUI(questions) {
+    // clear only the PREVIOUS question entries — 'openwhen' and any
+    // other non-question key (buildQuestion is also used standalone
+    // for the sealed-note widget) must survive a later question reload.
+    currentQuestions.forEach((q, idx) => { delete state[qidFor(q, idx)]; });
     currentQuestions = questions;
-    state = {};
     const container = document.getElementById('questionsContainer');
     container.innerHTML = '';
     questions.forEach((q, idx) => {
@@ -1036,6 +1107,10 @@
     } catch (e) { console.error('questions load failed', e); }
   }
 
+  function initials(name) {
+    return (name || '').trim().split(/\s+/).map(w => w[0]).filter(Boolean).join('').toUpperCase().slice(0, 3) || '?';
+  }
+
   async function loadSharedAnswers() {
     if (!supa) return;
     const section = document.getElementById('sharedSection');
@@ -1055,7 +1130,7 @@
         card.className = 'shared-card';
         const who = document.createElement('div');
         who.className = 'who';
-        who.textContent = sub.friend_name;
+        who.textContent = initials(sub.friend_name);
         card.appendChild(who);
 
         for (const a of answersData.filter(x => x.submission_id === sub.id)) {
@@ -1086,10 +1161,148 @@
     } catch (e) { console.error('shared answers load failed', e); }
   }
 
+  async function loadPhotoShares() {
+    if (!supa) return;
+    const section = document.getElementById('photoShareSection');
+    const grid = document.getElementById('photoShareGrid');
+    try {
+      const { data, error } = await supa.from('photo_drops').select('*')
+        .eq('approved', true).order('created_at', {ascending: false});
+      if (error || !data || !data.length) return;
+      grid.innerHTML = '';
+      for (const row of data) {
+        const { data: signed } = await supa.storage.from('responses').createSignedUrl(row.storage_path, 3600);
+        if (!signed || !signed.signedUrl) continue;
+        const card = document.createElement('div');
+        card.className = 'pshare-card';
+        const img = document.createElement('img');
+        img.src = signed.signedUrl; img.loading = 'lazy'; img.alt = row.caption || '';
+        card.appendChild(img);
+        const cap = document.createElement('div');
+        cap.className = 'pshare-cap';
+        cap.textContent = (row.caption ? row.caption + ' — ' : '') + initials(row.friend_name);
+        card.appendChild(cap);
+        grid.appendChild(card);
+      }
+      if (grid.children.length) { section.hidden = false; registerReveal(section); }
+    } catch (e) { console.error('photo drops load failed', e); }
+  }
+
+  /* =========================================================
+     7. OPEN WHEN — a sealed note, private forever (no public
+        read policy exists for this table at all). Reuses the
+        same text/video/audio widget as the main questions by
+        giving its wrapper a .qcard[data-qid="openwhen"].
+     ========================================================= */
+  buildQuestion('openwhen');
+
+  const owForm = document.getElementById('openWhenForm');
+  const owStatusEl = document.getElementById('owStatus');
+  function setOwStatus(msg, kind) { owStatusEl.textContent = msg; owStatusEl.className = 'status' + (kind ? ' ' + kind : ''); }
+
+  owForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('friendName').value.trim();
+    const trigger = document.getElementById('owTrigger').value.trim();
+    if (!name) { setOwStatus('Fill in your name up top first.', 'error'); return; }
+    if (!trigger) { setOwStatus('Say when I should open this.', 'error'); return; }
+    const s = state['openwhen'];
+    if (!s || !s.mode) { setOwStatus('Write, record, or say something first.', 'error'); return; }
+    if (s.mode === 'text' && (!s.text || !s.text.trim())) { setOwStatus('That looks empty.', 'error'); return; }
+    if (s.mode !== 'text' && !s.blob) { setOwStatus('Finish recording first.', 'error'); return; }
+    if (!supa) { setOwStatus('Not connected yet — tell Shubham.', 'error'); return; }
+
+    document.getElementById('owSubmitBtn').disabled = true;
+    setOwStatus('Sealing...', '');
+    try {
+      let filePath = null;
+      if (s.mode !== 'text') {
+        const safeName = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) || 'friend';
+        filePath = `openwhen-${safeName}-${Date.now()}.${s.ext}`;
+        const { error: upErr } = await supa.storage.from('responses').upload(filePath, s.blob, { contentType: s.mimeType || undefined });
+        if (upErr) throw upErr;
+      }
+      const { error } = await supa.from('open_when_notes').insert({
+        friend_name: name, trigger_label: trigger, kind: s.mode,
+        text_value: s.mode === 'text' ? s.text.trim() : null, file_path: filePath,
+      });
+      if (error) throw error;
+      owForm.hidden = true;
+      document.getElementById('owDone').hidden = false;
+    } catch (err) {
+      console.error(err);
+      setOwStatus('Something went wrong — try again?', 'error');
+      document.getElementById('owSubmitBtn').disabled = false;
+    }
+  });
+
+  /* =========================================================
+     8. PHOTO DROP — a photo of me a friend has that I don't;
+        private until approved, same bucket/approval pattern as
+        shared answers.
+     ========================================================= */
+  const pdForm = document.getElementById('photoDropForm');
+  const pdFileInput = document.getElementById('pdFileInput');
+  document.getElementById('pdDropzone').addEventListener('click', (e) => {
+    if (e.target.tagName !== 'INPUT') pdFileInput.click();
+  });
+  pdFileInput.addEventListener('change', () => {
+    const f = pdFileInput.files[0];
+    document.getElementById('pdDzText').textContent = f ? f.name : 'Tap to choose a photo';
+  });
+
+  function compressImageBlob(file, maxDim, quality) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
+        else if (height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        canvas.toBlob(b => b ? resolve(b) : reject(new Error('compression failed')), 'image/jpeg', quality);
+        URL.revokeObjectURL(img.src);
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  const pdStatusEl = document.getElementById('pdStatus');
+  pdForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('friendName').value.trim();
+    const caption = document.getElementById('pdCaption').value.trim();
+    const file = pdFileInput.files[0];
+    if (!name) { pdStatusEl.textContent = 'Fill in your name up top first.'; pdStatusEl.className = 'status error'; return; }
+    if (!file) { pdStatusEl.textContent = 'Choose a photo first.'; pdStatusEl.className = 'status error'; return; }
+    if (!supa) { pdStatusEl.textContent = 'Not connected yet — tell Shubham.'; pdStatusEl.className = 'status error'; return; }
+
+    document.getElementById('pdSubmitBtn').disabled = true;
+    pdStatusEl.textContent = 'Sending...'; pdStatusEl.className = 'status';
+    try {
+      const blob = await compressImageBlob(file, 1600, 0.8);
+      const safeName = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) || 'friend';
+      const path = `photodrop-${safeName}-${Date.now()}.jpg`;
+      const { error: upErr } = await supa.storage.from('responses').upload(path, blob, { contentType: 'image/jpeg' });
+      if (upErr) throw upErr;
+      const { error } = await supa.from('photo_drops').insert({ friend_name: name, storage_path: path, caption: caption || null });
+      if (error) throw error;
+      pdForm.hidden = true;
+      document.getElementById('pdDone').hidden = false;
+    } catch (err) {
+      console.error(err);
+      pdStatusEl.textContent = 'Something went wrong — try again?'; pdStatusEl.className = 'status error';
+      document.getElementById('pdSubmitBtn').disabled = false;
+    }
+  });
+
   loadSiteContent();
   loadGallery();
   loadQuestions();
   loadSharedAnswers();
+  loadPhotoShares();
 })();
 </script>
 </body>

@@ -117,6 +117,71 @@ using (
   )
 );
 
+-- ---------- photo drops (friends' own photos of you) ----------
+-- Private until you approve one; approved ones show on the public
+-- page under initials, never the friend's full name.
+create table public.photo_drops (
+  id uuid primary key default gen_random_uuid(),
+  friend_name text not null,
+  storage_path text not null,
+  caption text,
+  approved boolean not null default false,
+  created_at timestamptz not null default now()
+);
+alter table public.photo_drops enable row level security;
+
+create policy "anyone can submit a photo drop"
+on public.photo_drops for insert
+to public
+with check (true);
+
+create policy "signed-in user can manage photo drops"
+on public.photo_drops for all
+to authenticated
+using (true)
+with check (true);
+
+create policy "anyone can read approved photo drops"
+on public.photo_drops for select
+to public
+using (approved = true);
+
+create policy "anyone can view files of approved photo drops"
+on storage.objects for select
+to public
+using (
+  bucket_id = 'responses'
+  and exists (
+    select 1 from public.photo_drops p
+    where p.storage_path = storage.objects.name and p.approved = true
+  )
+);
+
+-- ---------- "open when" notes ----------
+-- Sealed, in spirit: no public read policy exists for this table at
+-- all, not even for approved/shared content -- only you (signed in)
+-- can ever read these, in admin.html, whenever the moment comes.
+create table public.open_when_notes (
+  id uuid primary key default gen_random_uuid(),
+  friend_name text not null,
+  trigger_label text not null,
+  kind text not null check (kind in ('text','video','audio')),
+  text_value text,
+  file_path text,
+  created_at timestamptz not null default now()
+);
+alter table public.open_when_notes enable row level security;
+
+create policy "anyone can leave an open-when note"
+on public.open_when_notes for insert
+to public
+with check (true);
+
+create policy "signed-in user can read open-when notes"
+on public.open_when_notes for select
+to authenticated
+using (true);
+
 -- ---------- site text (editable from admin.html) ----------
 create table public.site_content (
   id text primary key default 'main',

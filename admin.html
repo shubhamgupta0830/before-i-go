@@ -128,11 +128,12 @@
 </header>
 
 <div id="loginBox" class="login-box">
-  <h2>Sign in</h2>
-  <div class="field"><label>Email</label><input type="email" id="loginEmail" autocomplete="username"></div>
-  <div class="field"><label>Password</label><input type="password" id="loginPass" autocomplete="current-password"></div>
-  <button class="btn primary block" id="loginBtn">Sign in</button>
+  <h2>Enter PIN</h2>
+  <div class="field" id="loginEmailField"><label>Email (just this once on this device)</label><input type="email" id="loginEmail" autocomplete="username"></div>
+  <div class="field"><input type="password" id="loginPin" inputmode="numeric" autocomplete="current-password" placeholder="••••"></div>
+  <button class="btn primary block" id="loginBtn">Unlock</button>
   <p class="status-msg" id="loginStatus"></p>
+  <p class="muted" id="forgetDeviceRow" style="text-align:center; margin-top:.8rem;" hidden><a href="#" id="forgetDeviceLink" style="color:inherit;">not you? use a different email</a></p>
 </div>
 
 <div id="dash" hidden>
@@ -146,6 +147,8 @@
     <button data-tab="text" class="active">Text</button>
     <button data-tab="questions">Questions</button>
     <button data-tab="gallery">Gallery</button>
+    <button data-tab="photodrops">Photo drops</button>
+    <button data-tab="openwhen">Open when</button>
     <button data-tab="responses">Responses</button>
   </nav>
 
@@ -195,6 +198,26 @@
     </div>
   </section>
 
+  <!-- ===================== PHOTO DROPS ===================== -->
+  <section class="panel" id="panel-photodrops">
+    <div class="card">
+      <h3>Photo drops</h3>
+      <p class="muted" style="margin-bottom:.8rem;">Photos friends have sent of you. Approve the ones you want visible (under their initials) in the "Photos from friends" section of the live page.</p>
+      <div id="photoDropsList"></div>
+      <p class="muted" id="photoDropsEmpty" hidden>None yet.</p>
+    </div>
+  </section>
+
+  <!-- ===================== OPEN WHEN ===================== -->
+  <section class="panel" id="panel-openwhen">
+    <div class="card">
+      <h3>Open when...</h3>
+      <p class="muted" style="margin-bottom:.8rem;">These are never public — only you, here, ever see them. Each stays collapsed until you choose to open it.</p>
+      <div id="openWhenList"></div>
+      <p class="muted" id="openWhenEmpty" hidden>None yet.</p>
+    </div>
+  </section>
+
   <!-- ===================== RESPONSES ===================== -->
   <section class="panel" id="panel-responses">
     <div class="card">
@@ -214,20 +237,55 @@
 
   const SUPABASE_URL = 'https://keyogsilqjdnivwzjmlv.supabase.co';
   const SUPABASE_ANON_KEY = 'sb_publishable_qoVauUWpUaD0NKa999s-pQ_KsULvU8M';
-  const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: false } // require the PIN again on every visit
+  });
 
+  // No credentials live here. "PIN" below is literally your Supabase
+  // account password -- set it to a short digit string when you create
+  // your login (Authentication -> Users -> Add user) and that string
+  // IS the PIN, sent straight to Supabase, nothing hardcoded in this
+  // public file. Only the (non-secret) email is remembered on this
+  // device, in localStorage, so later visits only ask for the PIN.
   const loginBox = document.getElementById('loginBox');
   const dash = document.getElementById('dash');
   const whoami = document.getElementById('whoami');
+  const emailField = document.getElementById('loginEmailField');
+  const emailInput = document.getElementById('loginEmail');
+  const forgetRow = document.getElementById('forgetDeviceRow');
+
+  let rememberedEmail = null;
+  try { rememberedEmail = localStorage.getItem('bfg_admin_email'); } catch (e) {}
+  if (rememberedEmail) {
+    emailField.hidden = true;
+    forgetRow.hidden = false;
+  } else {
+    emailField.hidden = false;
+  }
+
+  document.getElementById('forgetDeviceLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    try { localStorage.removeItem('bfg_admin_email'); } catch (err) {}
+    rememberedEmail = null;
+    emailField.hidden = false;
+    forgetRow.hidden = true;
+    emailInput.value = '';
+  });
 
   /* ---------------- AUTH ---------------- */
   document.getElementById('loginBtn').addEventListener('click', async () => {
-    const email = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPass').value;
+    const email = rememberedEmail || emailInput.value.trim();
+    const pin = document.getElementById('loginPin').value;
     const statusEl = document.getElementById('loginStatus');
-    statusEl.textContent = 'Signing in...'; statusEl.className = 'status-msg';
-    const { error } = await supa.auth.signInWithPassword({ email, password });
-    if (error) { statusEl.textContent = error.message; statusEl.className = 'status-msg error'; }
+    if (!email) { statusEl.textContent = 'Enter your email.'; statusEl.className = 'status-msg error'; return; }
+    if (!pin) { statusEl.textContent = 'Enter your PIN.'; statusEl.className = 'status-msg error'; return; }
+    statusEl.textContent = 'Unlocking...'; statusEl.className = 'status-msg';
+    const { error } = await supa.auth.signInWithPassword({ email, password: pin });
+    if (error) { statusEl.textContent = error.message; statusEl.className = 'status-msg error'; return; }
+    try { localStorage.setItem('bfg_admin_email', email); } catch (e) {}
+  });
+  document.getElementById('loginPin').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('loginBtn').click();
   });
 
   document.getElementById('signOutBtn').addEventListener('click', async () => {
@@ -261,6 +319,8 @@
     loadTextFields();
     loadQuestions();
     loadGalleryAdmin();
+    loadPhotoDropsAdmin();
+    loadOpenWhenAdmin();
     loadResponses();
   }
 
@@ -642,6 +702,100 @@
       statusEl.textContent = e.message || 'Upload failed.'; statusEl.className = 'status-msg error';
     }
   });
+
+  /* =========================================================
+     PHOTO DROPS — moderation queue, approve/delete
+     ========================================================= */
+  async function loadPhotoDropsAdmin() {
+    const listEl = document.getElementById('photoDropsList');
+    const emptyEl = document.getElementById('photoDropsEmpty');
+    listEl.innerHTML = '';
+    try {
+      const { data, error } = await supa.from('photo_drops').select('*').order('created_at', {ascending:false});
+      if (error) throw error;
+      emptyEl.hidden = data.length > 0;
+      for (const row of data) {
+        const el = document.createElement('div');
+        el.className = 'gitem';
+        const img = document.createElement('img');
+        img.className = 'thumb';
+        const { data: signed } = await supa.storage.from('responses').createSignedUrl(row.storage_path, 3600);
+        if (signed) img.src = signed.signedUrl;
+        el.appendChild(img);
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        const who = document.createElement('div');
+        who.innerHTML = '<strong>' + row.friend_name + '</strong>' + (row.caption ? ' — ' + row.caption : '');
+        who.style.fontSize = '.85rem'; who.style.marginBottom = '.5rem';
+        meta.appendChild(who);
+
+        const ctrls = document.createElement('div');
+        ctrls.className = 'row wrap';
+        const approveLabel = document.createElement('label');
+        approveLabel.style.display = 'flex'; approveLabel.style.alignItems = 'center'; approveLabel.style.gap = '.4rem'; approveLabel.style.fontSize = '.8rem';
+        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = row.approved;
+        cb.addEventListener('change', async () => { await supa.from('photo_drops').update({ approved: cb.checked }).eq('id', row.id); });
+        approveLabel.appendChild(cb);
+        approveLabel.appendChild(document.createTextNode('show on shared page'));
+        const delBtn = document.createElement('button'); delBtn.className = 'btn small danger'; delBtn.textContent = 'Delete';
+        delBtn.addEventListener('click', async () => {
+          await supa.from('photo_drops').delete().eq('id', row.id);
+          await supa.storage.from('responses').remove([row.storage_path]);
+          await loadPhotoDropsAdmin();
+        });
+        ctrls.appendChild(approveLabel); ctrls.appendChild(delBtn);
+        meta.appendChild(ctrls);
+        el.appendChild(meta);
+        listEl.appendChild(el);
+      }
+    } catch (e) { listEl.innerHTML = '<p class="status-msg error">' + (e.message || 'Could not load.') + '</p>'; }
+  }
+
+  /* =========================================================
+     OPEN WHEN — private notes, collapsed until opened
+     ========================================================= */
+  async function loadOpenWhenAdmin() {
+    const listEl = document.getElementById('openWhenList');
+    const emptyEl = document.getElementById('openWhenEmpty');
+    listEl.innerHTML = '';
+    try {
+      const { data, error } = await supa.from('open_when_notes').select('*').order('created_at', {ascending:false});
+      if (error) throw error;
+      emptyEl.hidden = data.length > 0;
+      for (const row of data) {
+        const card = document.createElement('div');
+        card.className = 'sub-card';
+        const revealBtn = document.createElement('button');
+        revealBtn.className = 'btn block';
+        revealBtn.textContent = '✉ Open when ' + row.trigger_label + ' — from ' + row.friend_name;
+        const body = document.createElement('div');
+        body.hidden = true;
+        body.style.marginTop = '.8rem';
+        revealBtn.addEventListener('click', async () => {
+          if (!body.hidden) { body.hidden = true; return; }
+          if (!body.dataset.loaded) {
+            if (row.kind === 'text') {
+              const p = document.createElement('p');
+              p.style.fontFamily = "'Fraunces',serif"; p.textContent = row.text_value;
+              body.appendChild(p);
+            } else if (row.file_path) {
+              const media = document.createElement(row.kind === 'video' ? 'video' : 'audio');
+              media.controls = true;
+              const { data: signed } = await supa.storage.from('responses').createSignedUrl(row.file_path, 3600);
+              if (signed) media.src = signed.signedUrl;
+              body.appendChild(media);
+            }
+            body.dataset.loaded = '1';
+          }
+          body.hidden = false;
+        });
+        card.appendChild(revealBtn);
+        card.appendChild(body);
+        listEl.appendChild(card);
+      }
+    } catch (e) { listEl.innerHTML = '<p class="status-msg error">' + (e.message || 'Could not load.') + '</p>'; }
+  }
 
   /* =========================================================
      RESPONSES — view, download, approve for sharing
