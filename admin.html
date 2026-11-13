@@ -92,16 +92,23 @@
   .qrow .qfields input[type=text]{ font-size:.82rem; color:var(--muted); }
   .qrow .qctrls{ display:flex; flex-direction:column; gap:.3rem; }
   .qrow.inactive{ opacity:.5; }
+  .qrequired-opt{ display:flex; align-items:center; gap:.4rem; font-size:.78rem; color:var(--muted); cursor:pointer; }
 
   /* gallery grid in admin */
-  .gitem{ position:relative; background:var(--bg-elevated); border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:.8rem; }
+  .gitem{ position:relative; min-width:0; background:var(--bg-elevated); border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:.8rem; }
   .gitem.selected{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+  .gitem.is-hero{ border-color:var(--good); }
+  .gitem.is-hero::after{
+    content:'★ main'; position:absolute; top:6px; right:6px; z-index:2;
+    background:rgba(10,8,12,.8); color:var(--good);
+    font-size:.64rem; font-weight:600; padding:.15rem .4rem; border-radius:999px;
+  }
   .gitem .sel-check{
     position:absolute; top:6px; left:6px; z-index:2; width:22px; height:22px;
     accent-color:var(--accent); cursor:pointer;
   }
   .gitem .thumb{ width:100%; aspect-ratio:4/3; object-fit:cover; display:block; background:#000; }
-  .gitem .meta{ padding:.6rem .7rem; }
+  .gitem .meta{ padding:.6rem .7rem; overflow-wrap:anywhere; }
   .gitem input[type=text]{ margin-bottom:.4rem; }
   .gitems-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:.8rem; }
   .dropzone{
@@ -122,7 +129,8 @@
   .ans-block:first-of-type{ border-top:none; padding-top:0; }
   .ans-block .q{ font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted-dim); margin-bottom:.4rem; }
   .ans-block p{ margin:0; font-family:'Fraunces',serif; font-size:.95rem; }
-  .ans-block video, .ans-block audio{ width:100%; border-radius:8px; margin-top:.3rem; }
+  .ans-block video{ max-width:240px; max-height:240px; width:auto; height:auto; display:block; border-radius:8px; margin-top:.3rem; background:#000; }
+  .ans-block audio{ width:100%; border-radius:8px; margin-top:.3rem; }
   .share-toggle{ display:flex; align-items:center; gap:.5rem; margin-top:.8rem; font-size:.82rem; }
 
   /* storage meter */
@@ -161,7 +169,7 @@
       <h3 style="flex:1; font-size:.92rem;">Storage</h3>
       <select id="planSelect" style="width:auto; font-size:.76rem; padding:.3rem .5rem;">
         <option value="1">Free · 1 GB</option>
-        <option value="100">Pro · 100 GB</option>
+        <option value="100" selected>Pro · 100 GB</option>
       </select>
       <button class="btn small" id="refreshStorageBtn">↻</button>
     </div>
@@ -246,7 +254,7 @@
     <div class="card">
       <h3>Photo drops</h3>
       <p class="muted" style="margin-bottom:.8rem;">Photos friends have sent of you. Approve the ones you want visible (under their initials) in the "Photos from friends" section of the live page.</p>
-      <div id="photoDropsList"></div>
+      <div class="gitems-grid" id="photoDropsList"></div>
       <p class="muted" id="photoDropsEmpty" hidden>None yet.</p>
     </div>
   </section>
@@ -266,6 +274,11 @@
     <div class="card">
       <div class="row"><h3 style="flex:1;">Responses</h3><button class="btn small" id="refreshRespBtn">Refresh</button></div>
       <p class="muted" id="respCount" style="margin-bottom:.5rem;"></p>
+      <label class="qrequired-opt" id="autoApproveRow" style="margin-top:.4rem; align-items:flex-start;">
+        <input type="checkbox" id="autoApproveSharedCb" style="margin-top:.2rem;">
+        Auto-approve anything a friend says is okay to share — answers, photos, and videos all go public right away, no review needed. You can still un-approve any one of them below (here, and in the Photo drops tab).
+      </label>
+      <p class="status-msg" id="autoApproveStatus"></p>
     </div>
     <div id="responsesList"></div>
   </section>
@@ -365,6 +378,7 @@
     loadPhotoDropsAdmin();
     loadOpenWhenAdmin();
     loadResponses();
+    loadAutoApproveSetting();
     loadStorageUsage();
   }
 
@@ -375,7 +389,7 @@
      id/metadata) get listed one level deeper until only files remain.
      ========================================================= */
   const planSelect = document.getElementById('planSelect');
-  try { planSelect.value = localStorage.getItem('bfg_plan_gb') || '1'; } catch (e) {}
+  try { planSelect.value = localStorage.getItem('bfg_plan_gb') || '100'; } catch (e) {}
   planSelect.addEventListener('change', () => {
     try { localStorage.setItem('bfg_plan_gb', planSelect.value); } catch (e) {}
     renderStorageUsage(lastUsage);
@@ -449,7 +463,10 @@
     {key:'intro_p1', label:'Intro paragraph 1', type:'textarea'},
     {key:'intro_p2', label:'Intro paragraph 2', type:'textarea'},
     {key:'name_label', label:'Name field label', type:'text'},
-    {key:'share_opt_label', label:'"Okay to share" checkbox text', type:'textarea'},
+    {key:'share_opt_label', label:'"Okay to share this answer" checkbox text (shown under every question)', type:'textarea'},
+    {key:'share_name_label', label:'"Okay to share my name too" checkbox text', type:'textarea'},
+    {key:'share_name_field_label', label:'Public display-name field label', type:'text'},
+    {key:'share_name_placeholder', label:'Public display-name field placeholder', type:'text'},
     {key:'submit_label', label:'Submit button text', type:'text'},
     {key:'submit_sub', label:'Text under the submit button', type:'text'},
     {key:'done_heading', label:'Thank-you heading', type:'text'},
@@ -467,6 +484,7 @@
     {key:'pd_caption_placeholder', label:'Photo drop caption placeholder', type:'text'},
     {key:'pd_submit_label', label:'Photo drop submit button text', type:'text'},
     {key:'pd_done_text', label:'Photo drop thank-you text', type:'text'},
+    {key:'pd_share_opt_label', label:'Photo drop "okay to share" checkbox text', type:'textarea'},
     {key:'photoshare_heading', label:'"Photos from friends" section heading', type:'text'},
     {key:'photoshare_sub', label:'"Photos from friends" section subtext', type:'text'},
     {key:'shared_heading', label:'"Shared answers" section heading', type:'text'},
@@ -486,7 +504,10 @@
     intro_p1: "Six months isn't long, but it was long enough that most of the good parts had you in them. Before I pack this city away, I wanted to ask you something — however you'd rather answer it. Say it to a camera, record a voice note, or just write it down.",
     intro_p2: "Below are a few memories from New York. Beyond the gallery, you'll find a few questions I have for you — I'd love to know the answer.",
     name_label: 'Sign your name before you start',
-    share_opt_label: "It's okay to share my answer with others reading this page (my call either way — he still decides what actually gets posted)",
+    share_opt_label: "It's okay to share this answer with others reading this page (my call either way — he still decides what actually gets posted)",
+    share_name_label: "It's okay to show my name too (otherwise only initials show)",
+    share_name_field_label: 'Name to show publicly',
+    share_name_placeholder: "how you'd like your name shown",
     submit_label: 'Send it my way',
     submit_sub: 'it goes straight to me, nowhere else',
     done_heading: 'Got it. Thank you.',
@@ -498,12 +519,13 @@
     ow_trigger_placeholder: "you're missing New York / it's been a year / you need a laugh",
     ow_submit_label: 'Seal it',
     ow_done_text: "Sealed. I won't look until it's time.",
-    pd_heading: "Got a photo of me I've never seen?",
+    pd_heading: "Got a photo, video, or GIF of me I've never seen?",
     pd_sub: 'drop it here — I decide what goes public, the rest stays just for me',
-    pd_dropzone_text: 'Tap to choose a photo',
+    pd_dropzone_text: 'Tap to choose a photo, video, or GIF',
     pd_caption_placeholder: 'caption (optional)',
     pd_submit_label: 'Send the photo',
     pd_done_text: 'Got it. Thank you.',
+    pd_share_opt_label: "It's okay to share this with others reading this page (my call either way — he still decides what actually gets posted)",
     photoshare_heading: 'Photos from friends',
     photoshare_sub: 'things people saw that I never got a copy of',
     shared_heading: 'Shared answers',
@@ -588,6 +610,18 @@
   async function loadQuestions() {
     const { data, error } = await supa.from('questions').select('*').order('position', {ascending:true});
     questionsCache = (!error && data) || [];
+    // Only questions that already have at least one answer force the
+    // same-question-vs-new-question choice when reworded -- for a
+    // question nobody has answered yet, editing it in place is unambiguous.
+    let answeredIds = new Set();
+    try {
+      const { data: ansRows } = await supa.from('answers').select('question_id');
+      answeredIds = new Set((ansRows || []).map(r => r.question_id).filter(Boolean));
+    } catch (e) {}
+    questionsCache.forEach(q => {
+      q._originalPrompt = q.prompt;
+      q._hasAnswers = answeredIds.has(q.id);
+    });
     renderQuestions();
   }
 
@@ -604,16 +638,25 @@
       const ta = document.createElement('textarea');
       ta.value = q.prompt;
       ta.placeholder = 'Question prompt';
-      ta.addEventListener('input', () => { q._dirty = true; q.prompt = ta.value; });
 
       const subInput = document.createElement('input');
       subInput.type = 'text';
       subInput.value = q.subtitle || '';
       subInput.placeholder = 'Subtitle shown under the question (optional)';
-      subInput.addEventListener('input', () => { q._dirty = true; q.subtitle = subInput.value; });
+      subInput.addEventListener('input', () => { q.subtitle = subInput.value; });
+
+      const requiredLabel = document.createElement('label');
+      requiredLabel.className = 'qrequired-opt';
+      const requiredCb = document.createElement('input');
+      requiredCb.type = 'checkbox';
+      requiredCb.checked = q.required !== false;
+      requiredCb.addEventListener('change', () => saveQuestionRequired(q, requiredCb));
+      requiredLabel.appendChild(requiredCb);
+      requiredLabel.appendChild(document.createTextNode('Required (uncheck to let friends skip this one)'));
 
       fields.appendChild(ta);
       fields.appendChild(subInput);
+      fields.appendChild(requiredLabel);
 
       const ctrls = document.createElement('div');
       ctrls.className = 'qctrls';
@@ -630,22 +673,81 @@
       toggleBtn.textContent = q.active ? 'Retire' : 'Reactivate';
       toggleBtn.addEventListener('click', () => toggleQuestion(q, row));
 
+      // Rewording a question nobody's answered yet is a plain Save. Once
+      // it has answers, changing the prompt forks: either it's still the
+      // same question (reworded in place, old answers stay attached), or
+      // it's really a new question (old one retired as-is, keeping its
+      // answers; a fresh question takes its place for new respondents).
       const saveBtn = document.createElement('button'); saveBtn.className='btn small primary'; saveBtn.textContent='Save';
-      saveBtn.addEventListener('click', () => saveQuestionText(q, saveBtn));
+      const saveNewBtn = document.createElement('button'); saveNewBtn.className='btn small'; saveNewBtn.textContent='Save as new question';
+      const cancelEditBtn = document.createElement('button'); cancelEditBtn.className='btn small'; cancelEditBtn.textContent='Cancel edit';
 
-      ctrls.appendChild(upBtn); ctrls.appendChild(downBtn); ctrls.appendChild(toggleBtn); ctrls.appendChild(saveBtn);
+      function refreshSaveButtons() {
+        const needsChoice = q._hasAnswers && q.prompt !== q._originalPrompt;
+        saveBtn.textContent = needsChoice ? 'Save (same question)' : 'Save';
+        saveNewBtn.hidden = !needsChoice;
+        cancelEditBtn.hidden = !needsChoice;
+      }
+      ta.addEventListener('input', () => { q.prompt = ta.value; refreshSaveButtons(); });
+      saveBtn.addEventListener('click', () => saveQuestionText(q, saveBtn, refreshSaveButtons));
+      saveNewBtn.addEventListener('click', () => saveAsNewQuestion(q, saveNewBtn));
+      cancelEditBtn.addEventListener('click', () => {
+        q.prompt = q._originalPrompt; ta.value = q._originalPrompt;
+        refreshSaveButtons();
+      });
+      refreshSaveButtons();
+
+      ctrls.appendChild(upBtn); ctrls.appendChild(downBtn); ctrls.appendChild(toggleBtn);
+      ctrls.appendChild(saveBtn); ctrls.appendChild(saveNewBtn); ctrls.appendChild(cancelEditBtn);
       row.appendChild(fields); row.appendChild(ctrls);
       wrap.appendChild(row);
     });
   }
 
-  async function saveQuestionText(q, btn) {
+  async function saveQuestionText(q, btn, refreshSaveButtons) {
     btn.disabled = true;
     const { error } = await supa.from('questions').update({ prompt: q.prompt, subtitle: q.subtitle || null }).eq('id', q.id);
     btn.disabled = false;
     const statusEl = document.getElementById('questionsStatus');
     statusEl.textContent = error ? (error.message) : 'Saved — only future answers use the new wording.';
     statusEl.className = 'status-msg ' + (error ? 'error' : 'good');
+    if (!error) { q._originalPrompt = q.prompt; refreshSaveButtons(); }
+  }
+
+  async function saveAsNewQuestion(q, btn) {
+    btn.disabled = true;
+    const statusEl = document.getElementById('questionsStatus');
+    try {
+      const { error: retireErr } = await supa.from('questions').update({ active: false }).eq('id', q.id);
+      if (retireErr) throw retireErr;
+      const { error: insErr } = await supa.from('questions')
+        .insert({ prompt: q.prompt, subtitle: q.subtitle || null, position: q.position, active: true });
+      if (insErr) throw insErr;
+      statusEl.textContent = 'Saved as a new question — the old wording is retired, its answers stay attached to it.';
+      statusEl.className = 'status-msg good';
+      await loadQuestions();
+    } catch (e) {
+      statusEl.textContent = e.message || 'Could not save.';
+      statusEl.className = 'status-msg error';
+      btn.disabled = false;
+    }
+  }
+
+  async function saveQuestionRequired(q, cb) {
+    cb.disabled = true;
+    const nextRequired = cb.checked;
+    const { error } = await supa.from('questions').update({ required: nextRequired }).eq('id', q.id);
+    cb.disabled = false;
+    const statusEl = document.getElementById('questionsStatus');
+    if (error) {
+      cb.checked = !nextRequired; // revert on failure
+      statusEl.textContent = error.message;
+      statusEl.className = 'status-msg error';
+    } else {
+      q.required = nextRequired;
+      statusEl.textContent = nextRequired ? 'Saved — friends must answer this one.' : 'Saved — friends can skip this one.';
+      statusEl.className = 'status-msg good';
+    }
   }
 
   async function toggleQuestion(q, row) {
@@ -706,7 +808,7 @@
 
     galleryCache.forEach((row, i) => {
       const el = document.createElement('div');
-      el.className = 'gitem' + (gallerySelection.has(row.id) ? ' selected' : '');
+      el.className = 'gitem' + (gallerySelection.has(row.id) ? ' selected' : '') + (row.is_hero ? ' is-hero' : '');
 
       const sel = document.createElement('input');
       sel.type = 'checkbox'; sel.className = 'sel-check';
@@ -740,15 +842,43 @@
       upBtn.addEventListener('click', () => moveGalleryItem(i, -1));
       const downBtn = document.createElement('button'); downBtn.className='btn small'; downBtn.textContent='↓'; downBtn.disabled = i===galleryCache.length-1;
       downBtn.addEventListener('click', () => moveGalleryItem(i, 1));
+      const heroBtn = document.createElement('button');
+      heroBtn.className = 'btn small' + (row.is_hero ? ' primary' : '');
+      heroBtn.textContent = row.is_hero ? '★ Main' : 'Make main';
+      heroBtn.title = 'Show this one large, in the middle of the gallery';
+      heroBtn.addEventListener('click', () => setHeroItem(row, heroBtn));
       const delBtn = document.createElement('button'); delBtn.className='btn small danger'; delBtn.textContent='Delete';
       delBtn.addEventListener('click', () => deleteGalleryItems([row]));
-      ctrls.appendChild(upBtn); ctrls.appendChild(downBtn); ctrls.appendChild(delBtn);
+      ctrls.appendChild(upBtn); ctrls.appendChild(downBtn); ctrls.appendChild(heroBtn); ctrls.appendChild(delBtn);
       meta.appendChild(ctrls);
 
       el.appendChild(meta);
       grid.appendChild(el);
     });
     updateBulkDeleteBtn();
+  }
+
+  // Clicking the current centrepiece clears it; clicking any other one
+  // takes over. The old one is always cleared first -- the table allows
+  // only one centrepiece at a time.
+  async function setHeroItem(row, btn) {
+    btn.disabled = true;
+    const statusEl = document.getElementById('galleryStatus');
+    try {
+      const { error: clearErr } = await supa.from('gallery_items').update({ is_hero: false }).eq('is_hero', true);
+      if (clearErr) throw clearErr;
+      if (!row.is_hero) {
+        const { error } = await supa.from('gallery_items').update({ is_hero: true }).eq('id', row.id);
+        if (error) throw error;
+      }
+      statusEl.textContent = row.is_hero ? 'Cleared the main photo.' : 'Set as the main photo.';
+      statusEl.className = 'status-msg good';
+      await loadGalleryAdmin();
+    } catch (e) {
+      statusEl.textContent = e.message || 'Could not change the main photo.';
+      statusEl.className = 'status-msg error';
+      btn.disabled = false;
+    }
   }
 
   async function moveGalleryItem(index, dir) {
@@ -999,11 +1129,12 @@
       for (const row of data) {
         const el = document.createElement('div');
         el.className = 'gitem';
-        const img = document.createElement('img');
-        img.className = 'thumb';
         const { data: signed } = await supa.storage.from('responses').createSignedUrl(row.storage_path, 3600);
-        if (signed) img.src = signed.signedUrl;
-        el.appendChild(img);
+        const thumb = row.kind === 'video' ? document.createElement('video') : document.createElement('img');
+        thumb.className = 'thumb';
+        if (row.kind === 'video') { thumb.muted = true; thumb.controls = true; thumb.preload = 'metadata'; }
+        if (signed) thumb.src = signed.signedUrl;
+        el.appendChild(thumb);
 
         const meta = document.createElement('div');
         meta.className = 'meta';
@@ -1011,6 +1142,12 @@
         who.innerHTML = '<strong>' + row.friend_name + '</strong>' + (row.caption ? ' — ' + row.caption : '');
         who.style.fontSize = '.85rem'; who.style.marginBottom = '.5rem';
         meta.appendChild(who);
+
+        if (row.ok_to_share) {
+          const badge = document.createElement('span'); badge.className = 'badge share';
+          badge.textContent = 'okay to share'; badge.style.marginBottom = '.5rem'; badge.style.display = 'inline-block';
+          meta.appendChild(badge);
+        }
 
         const ctrls = document.createElement('div');
         ctrls.className = 'row wrap';
@@ -1106,17 +1243,30 @@
         const name = document.createElement('span'); name.className = 'sname'; name.textContent = sub.friend_name;
         const time = document.createElement('span'); time.className = 'stime'; time.textContent = new Date(sub.created_at).toLocaleString();
         head.appendChild(name); head.appendChild(time);
-        if (sub.ok_to_share) {
+        const subAnswers = answers.filter(x => x.submission_id === sub.id);
+        const anySharedAnswer = subAnswers.some(a => a.ok_to_share);
+        if (anySharedAnswer) {
           const badge = document.createElement('span'); badge.className = 'badge share'; badge.textContent = 'okay to share';
           head.appendChild(badge);
         }
+        if (sub.ok_to_share_name && sub.display_name) {
+          const nameBadge = document.createElement('span'); nameBadge.className = 'badge share';
+          nameBadge.textContent = 'shown publicly as "' + sub.display_name + '"';
+          head.appendChild(nameBadge);
+        }
         card.appendChild(head);
 
-        for (const a of answers.filter(x => x.submission_id === sub.id)) {
+        for (const a of subAnswers) {
           const block = document.createElement('div');
           block.className = 'ans-block';
           const q = document.createElement('div'); q.className = 'q'; q.textContent = a.question_prompt;
           block.appendChild(q);
+          if (a.ok_to_share) {
+            const aBadge = document.createElement('span'); aBadge.className = 'badge share';
+            aBadge.textContent = 'okay to share this answer';
+            aBadge.style.marginBottom = '.4rem'; aBadge.style.display = 'inline-block';
+            block.appendChild(aBadge);
+          }
           if (a.kind === 'text') {
             const p = document.createElement('p'); p.textContent = a.text_value; block.appendChild(p);
           } else if (a.file_path) {
@@ -1134,7 +1284,7 @@
           card.appendChild(block);
         }
 
-        if (sub.ok_to_share) {
+        if (anySharedAnswer) {
           const toggleWrap = document.createElement('label');
           toggleWrap.className = 'share-toggle';
           const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = sub.shared_approved;
@@ -1142,7 +1292,7 @@
             await supa.from('submissions').update({ shared_approved: cb.checked }).eq('id', sub.id);
           });
           toggleWrap.appendChild(cb);
-          toggleWrap.appendChild(document.createTextNode('Show in the public "Shared answers" section'));
+          toggleWrap.appendChild(document.createTextNode('Show this friend\'s shared answer(s) in the public "Shared answers" section'));
           card.appendChild(toggleWrap);
         }
 
@@ -1166,6 +1316,44 @@
   }
 
   document.getElementById('refreshRespBtn').addEventListener('click', loadResponses);
+
+  // Auto-approve toggle lives in site_content alongside the Text tab's
+  // fields, but is read/written on its own here -- fetching the latest
+  // row and merging in just this one key, rather than reusing the Text
+  // tab's `siteData` -- so toggling it never clobbers unsaved edits
+  // sitting in the other tab (or vice versa).
+  async function loadAutoApproveSetting() {
+    try {
+      const { data } = await supa.from('site_content').select('data').eq('id', 'main').maybeSingle();
+      document.getElementById('autoApproveSharedCb').checked = !!(data && data.data && data.data.auto_approve_shared);
+    } catch (e) {}
+  }
+
+  document.getElementById('autoApproveSharedCb').addEventListener('change', async (e) => {
+    const cb = e.target;
+    const checked = cb.checked;
+    const statusEl = document.getElementById('autoApproveStatus');
+    cb.disabled = true;
+    try {
+      const { data } = await supa.from('site_content').select('data').eq('id', 'main').maybeSingle();
+      const merged = Object.assign({}, (data && data.data) || {}, { auto_approve_shared: checked });
+      const { error } = await supa.from('site_content').upsert({ id: 'main', data: merged, updated_at: new Date().toISOString() });
+      if (error) throw error;
+      // Keep the Text tab's own in-memory copy in sync too, so clicking
+      // "Save text" afterward doesn't silently write back a stale value.
+      siteData.auto_approve_shared = checked;
+      statusEl.textContent = checked
+        ? 'Saved — new shared-okay answers, photos, and videos go public right away. Un-approve any one of them if you don\'t like it.'
+        : 'Saved — shared-okay answers, photos, and videos wait for your approval, as before.';
+      statusEl.className = 'status-msg good';
+    } catch (err) {
+      cb.checked = !checked; // revert on failure
+      statusEl.textContent = err.message || 'Could not save.';
+      statusEl.className = 'status-msg error';
+    } finally {
+      cb.disabled = false;
+    }
+  });
 })();
 </script>
 </body>

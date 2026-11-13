@@ -83,8 +83,11 @@
   .mosaic.layout-grid .mosaic-item img,
   .mosaic.layout-grid .mosaic-item video{ object-fit:cover; }
 
-  .mosaic.layout-flow{ column-count:var(--cols, 3); column-gap:8px; }
-  .mosaic.layout-flow .mosaic-item{ display:inline-block; width:100%; break-inside:avoid; -webkit-column-break-inside:avoid; margin:0 0 8px; }
+  /* Flow positions every tile itself (see layoutFlow in the script) so the
+     centrepiece can be an obstacle the rest of the wall packs around --
+     above it, below it and either side -- rather than a column of its own. */
+  .mosaic.layout-flow{ position:relative; }
+  .mosaic.layout-flow .mosaic-item{ position:absolute; top:0; left:0; }
   .mosaic.layout-flow .mosaic-item img,
   .mosaic.layout-flow .mosaic-item video{ height:auto; object-fit:initial; }
 
@@ -206,6 +209,64 @@
   }
   .lightbox-close:hover{ background:rgba(10,8,12,.95); }
   .lightbox-close svg{ width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; }
+
+  /* ---------- section nav (hamburger) ----------
+     A jump-menu so the page doesn't have to be scrolled start to finish
+     once there are a lot of responses -- "Shared answers" also shows a
+     bounded, internally-scrolling grid per question (see .shared-grid)
+     so that part of the page stays a fixed length no matter how many
+     people respond. "Photos from friends" uses the main photo gallery's
+     own mosaic component instead (see #friendsMosaic), uncapped. */
+  .nav-toggle{
+    position:fixed; z-index:500;
+    top:max(14px, env(safe-area-inset-top,0px)); left:max(14px, env(safe-area-inset-left,0px));
+    width:42px; height:42px; border-radius:50%;
+    background:rgba(10,8,12,.72); border:1px solid var(--line); color:var(--fg);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .nav-toggle svg{ width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:2; }
+  .nav-overlay{
+    position:fixed; inset:0; z-index:900;
+    background:rgba(5,4,7,.6);
+    opacity:0; visibility:hidden;
+    transition:opacity .25s ease, visibility 0s linear .25s;
+  }
+  .nav-overlay.open{ opacity:1; visibility:visible; transition:opacity .25s ease; }
+  .nav-panel{
+    position:fixed; top:0; left:0; bottom:0;
+    width:min(78vw, 320px);
+    background:var(--bg-elevated);
+    border-right:1px solid var(--line);
+    padding:1.4rem 1.2rem max(1.4rem, env(safe-area-inset-bottom,0px));
+    transform:translateX(-100%);
+    transition:transform .3s ease;
+    overflow-y:auto;
+  }
+  .nav-overlay.open .nav-panel{ transform:translateX(0); }
+  .nav-close{
+    width:36px; height:36px; border-radius:50%;
+    background:var(--card); border:1px solid var(--line); color:var(--fg);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; margin-bottom:1.2rem;
+  }
+  .nav-close svg{ width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2; }
+  .nav-panel nav{ display:flex; flex-direction:column; }
+  .nav-link{
+    display:block; padding:.65rem .2rem; color:var(--muted); text-decoration:none;
+    font-family:'Fraunces',serif; font-size:1rem; border-bottom:1px solid var(--line-soft);
+  }
+  .nav-link:hover, .nav-link:focus-visible{ color:var(--accent); }
+  .nav-sublist{ display:flex; flex-direction:column; margin:.3rem 0 .5rem 1rem; }
+  .nav-sublink{
+    display:block; padding:.4rem .2rem; color:var(--muted-dim); text-decoration:none;
+    font-size:.8rem; font-style:italic;
+  }
+  .nav-sublink:hover, .nav-sublink:focus-visible{ color:var(--accent); }
+  #section-gallery, #section-questions, #section-openwhen, #section-photodrop,
+  #photoShareSection, #sharedSection, .shared-qgroup{ scroll-margin-top:20px; }
+  @media (prefers-reduced-motion: no-preference){ html{ scroll-behavior:smooth; } }
+
   /* ---------- divider ---------- */
   .divider{
     display:flex; align-items:center; justify-content:center; gap:10px;
@@ -278,6 +339,11 @@
   }
   .qcard.answered{border-color:var(--accent-dim); background:var(--card-hover);}
   .qcard-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:.6rem;}
+  .qhead-left{display:flex; align-items:center; gap:.5rem;}
+  .qcard .qoptional{
+    font-size:.68rem; letter-spacing:.07em; text-transform:uppercase;
+    color:var(--muted-dim); font-style:italic;
+  }
   .qcard .qnum{
     font-size:.7rem; letter-spacing:.12em; text-transform:uppercase;
     color:var(--accent); font-weight:600;
@@ -393,32 +459,62 @@
     accent-color:var(--accent);
     flex-shrink:0;
   }
+  .qcard .qshare-opt{ margin:1.1rem 0 0; font-size:.78rem; padding-top:.9rem; border-top:1px solid var(--line-soft); }
+  .share-name-opt{ margin:0 0 .4rem 1.6rem; }
+  .share-name-opt .share-opt{ margin:.3rem 0 .4rem; font-size:.78rem; }
+  .share-name-opt .field-plain{ margin:.6rem 0 .8rem; }
 
   /* ---------- Shared answers ---------- */
   .shared-wrap{padding-top:1.4rem;}
   .shared-heading{font-size:1.5rem; text-align:center; margin-bottom:.4rem;}
   .shared-sub{text-align:center; font-size:.82rem; color:var(--muted-dim); font-style:italic; margin:0 0 1.4rem;}
-  .shared-card{
+  .shared-empty{
+    text-align:center; font-size:.85rem; color:var(--muted-dim); font-style:italic;
+    padding:1.4rem 1rem; border:1px dashed var(--line); border-radius:14px;
+  }
+  .shared-qgroup{margin:0 0 2rem;}
+  .shared-qgroup:last-child{margin-bottom:0;}
+  .shared-qtitle{
+    font-family:'Fraunces',serif; font-style:italic; font-weight:500;
+    font-size:1.05rem; color:var(--fg); text-align:center; margin:0 0 1rem;
+  }
+  .shared-grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(160px,1fr)); gap:.8rem;
+    max-height:380px; overflow-y:auto; overscroll-behavior:contain; padding-right:.3rem;
+  }
+  .shared-grid::-webkit-scrollbar{width:6px;}
+  .shared-grid::-webkit-scrollbar-thumb{background:var(--line); border-radius:3px;}
+  .shared-tile{
     background:var(--card);
     border:1px solid var(--line-soft);
-    border-radius:16px;
-    padding:1.3rem 1.4rem;
-    margin:0 0 1rem;
+    border-radius:14px;
+    padding:.9rem 1rem;
+    min-width:0; /* grid items default to min-width:auto, which lets long
+      text or a native <audio> bar's intrinsic width force the tile wider
+      than its actual grid column -- this makes it shrink like everything
+      else instead of overflowing past the card's border. */
   }
-  .shared-card .who{
-    font-family:'Fraunces',serif; font-weight:500; font-size:1.05rem; color:var(--accent);
-    margin-bottom:.8rem;
+  .shared-tile .who{
+    font-family:'Fraunces',serif; font-weight:500; font-size:.88rem; color:var(--accent);
+    margin-bottom:.6rem;
   }
-  .shared-answer{margin-bottom:1rem;}
-  .shared-answer:last-child{margin-bottom:0;}
-  .shared-answer .sq{
-    font-size:.68rem; letter-spacing:.1em; text-transform:uppercase;
-    color:var(--muted-dim); font-weight:600; margin-bottom:.4rem;
+  .shared-tile p{
+    margin:0; color:var(--fg); font-family:'Fraunces',serif; font-size:.92rem; line-height:1.5;
+    overflow-wrap:anywhere;
   }
-  .shared-answer p{
-    margin:0; color:var(--fg); font-family:'Fraunces',serif; font-size:.98rem; line-height:1.55;
+  .shared-tile audio{width:100%; min-width:0; border-radius:10px; display:block; background:#000;}
+  .shared-media-thumb{
+    position:relative; width:150px; max-width:45%; aspect-ratio:1;
+    border-radius:10px; overflow:hidden; cursor:pointer; background:#000;
   }
-  .shared-answer video, .shared-answer audio{width:100%; border-radius:10px; display:block; background:#000;}
+  .shared-tile .shared-media-thumb{width:100%; max-width:100%;}
+  .shared-media-thumb video{width:100%; height:100%; object-fit:cover; display:block; pointer-events:none;}
+  .shared-media-play{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:#f4e9d2; background:rgba(10,8,12,.25); transition:background .2s;
+  }
+  .shared-media-thumb:hover .shared-media-play{background:rgba(10,8,12,.4);}
+  .shared-media-play svg{width:34px; height:34px; filter:drop-shadow(0 2px 6px rgba(0,0,0,.5));}
 
   /* ---------- Open when / Photo drop ---------- */
   .openwhen-wrap, .photodrop-wrap{ padding-top:1.4rem; }
@@ -439,12 +535,10 @@
   .done.small{ text-align:center; padding:1.6rem 0; }
   .done.small p{ font-family:'Fraunces',serif; font-style:italic; color:var(--muted); font-size:1rem; }
 
-  /* ---------- Photos from friends (approved) ---------- */
-  .pshare-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:.7rem; }
-  @media (min-width:600px){ .pshare-grid{ grid-template-columns:repeat(3, 1fr); } }
-  .pshare-card{ border-radius:12px; overflow:hidden; background:var(--card); border:1px solid var(--line-soft); }
-  .pshare-card img{ width:100%; aspect-ratio:1; object-fit:cover; display:block; }
-  .pshare-cap{ padding:.5rem .6rem; font-size:.74rem; color:var(--muted-dim); font-style:italic; }
+  /* ---------- Photos from friends ----------
+     Renders through the exact same renderMosaic() component as the main
+     gallery (grid/flow/scatter, hover-enlarge, mute/zoom, captions) --
+     see #friendsMosaic below and section 1/1b in the script. */
 
   /* ---------- Submit ---------- */
   .submit-row{padding-top:.6rem; text-align:center;}
@@ -477,6 +571,27 @@
 </head>
 <body>
 
+<button type="button" class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navOverlay">
+  <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
+</button>
+
+<div class="nav-overlay" id="navOverlay">
+  <div class="nav-panel">
+    <button type="button" class="nav-close" id="navClose" aria-label="Close menu">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>
+    </button>
+    <nav>
+      <a class="nav-link" href="#section-gallery">Gallery</a>
+      <a class="nav-link" href="#section-questions">Questions</a>
+      <a class="nav-link" href="#section-openwhen">Open When</a>
+      <a class="nav-link" href="#section-photodrop">Photo Drop</a>
+      <a class="nav-link" id="navFriendsPhotos" href="#photoShareSection">Photos from Friends</a>
+      <a class="nav-link" id="navSharedAnswers" href="#sharedSection">Shared Answers</a>
+      <div class="nav-sublist" id="navSharedSublist"></div>
+    </nav>
+  </div>
+</div>
+
 <div class="wrap">
 
   <div class="divider reveal"><span class="line"></span><span class="mark">✦</span><span class="line"></span></div>
@@ -490,7 +605,7 @@
 
 </div>
 
-<div class="mosaic-wrap">
+<div class="mosaic-wrap" id="section-gallery">
   <div class="mosaic" id="mosaic" aria-label="Photos from New York"></div>
 </div>
 
@@ -503,7 +618,7 @@
 
 <div class="wrap">
 
-  <section class="namefield reveal">
+  <section class="namefield reveal" id="section-questions">
     <label for="friendName" id="txt-namelabel">Sign your name before you start</label>
     <div class="signature-input">
       <input type="text" id="friendName" placeholder="your name" autocomplete="name">
@@ -516,10 +631,16 @@
       <!-- question cards are built from the questions table at load time; see section 1b -->
     </div>
 
-    <label class="share-opt">
-      <input type="checkbox" id="okToShare">
-      <span id="txt-shareoptlabel">It's okay to share my answer with others reading this page (my call either way — he still decides what actually gets posted)</span>
-    </label>
+    <div class="share-name-opt" id="shareNameWrap" hidden>
+      <label class="share-opt">
+        <input type="checkbox" id="okToShareName">
+        <span id="txt-sharenamelabel">It's okay to show my name too (otherwise only initials show)</span>
+      </label>
+      <div class="field-plain" id="shareNameFieldWrap" hidden>
+        <label for="shareDisplayName" id="txt-sharenamefieldlabel">Name to show publicly</label>
+        <input type="text" id="shareDisplayName" placeholder="how you'd like your name shown">
+      </div>
+    </div>
 
     <div class="submit-row reveal">
       <button type="submit" class="btn primary" id="submitBtn">Send it my way</button>
@@ -534,7 +655,7 @@
     <p id="txt-donebody">This means more than you know. See you before I'm fully gone — and definitely before I'm back.</p>
   </div>
 
-  <section class="openwhen-wrap reveal">
+  <section class="openwhen-wrap reveal" id="section-openwhen">
     <div class="divider"><span class="line"></span><span class="mark">✦</span><span class="line"></span></div>
     <h2 class="shared-heading" id="txt-owheading">Leave something for later</h2>
     <p class="shared-sub" id="txt-owsub">a note I'm not supposed to read yet — I won't, until it's time</p>
@@ -553,33 +674,46 @@
     <div class="done small" id="owDone" hidden><p id="txt-owdone">Sealed. I won't look until it's time.</p></div>
   </section>
 
-  <section class="photodrop-wrap reveal">
+  <section class="photodrop-wrap reveal" id="section-photodrop">
     <div class="divider"><span class="line"></span><span class="mark">✦</span><span class="line"></span></div>
-    <h2 class="shared-heading" id="txt-pdheading">Got a photo of me I've never seen?</h2>
+    <h2 class="shared-heading" id="txt-pdheading">Got a photo, video, or GIF of me I've never seen?</h2>
     <p class="shared-sub" id="txt-pdsub">drop it here — I decide what goes public, the rest stays just for me</p>
     <form id="photoDropForm">
       <label class="dropzone-public" id="pdDropzone">
-        <input type="file" id="pdFileInput" accept="image/*" hidden>
-        <span id="pdDzText">Tap to choose a photo</span>
+        <input type="file" id="pdFileInput" accept="image/*,video/*" hidden>
+        <span id="pdDzText">Tap to choose a photo, video, or GIF</span>
       </label>
       <div class="field-plain"><input type="text" id="pdCaption" placeholder="caption (optional)"></div>
+      <label class="share-opt">
+        <input type="checkbox" id="pdOkToShare">
+        <span id="txt-pdshareoptlabel">It's okay to share this with others reading this page (my call either way — he still decides what actually gets posted)</span>
+      </label>
       <button type="submit" class="btn primary block" id="pdSubmitBtn">Send the photo</button>
       <p class="status" id="pdStatus"></p>
     </form>
     <div class="done small" id="pdDone" hidden><p id="txt-pddone">Got it. Thank you.</p></div>
   </section>
 
-  <section class="photoshare-wrap reveal" id="photoShareSection" hidden>
+  <section class="photoshare-wrap reveal" id="photoShareSection">
     <div class="divider"><span class="line"></span><span class="mark">✦</span><span class="line"></span></div>
     <h2 class="shared-heading" id="txt-psheading">Photos from friends</h2>
     <p class="shared-sub" id="txt-pssub">things people saw that I never got a copy of</p>
-    <div class="pshare-grid" id="photoShareGrid"></div>
+    <p class="shared-empty" id="psEmpty">Nothing here yet. Upload a photo/video/gif above. It'll show up right here.</p>
   </section>
 
-  <section class="shared-wrap reveal" id="sharedSection" hidden>
+</div>
+
+<div class="mosaic-wrap" id="friendsMosaicWrap" hidden>
+  <div class="mosaic" id="friendsMosaic" aria-label="Photos from friends"></div>
+</div>
+
+<div class="wrap">
+
+  <section class="shared-wrap reveal" id="sharedSection">
     <div class="divider"><span class="line"></span><span class="mark">✦</span><span class="line"></span></div>
     <h2 class="shared-heading" id="txt-sharedheading">Shared answers</h2>
     <p class="shared-sub" id="txt-sharedsub">a few people said it was okay to share this</p>
+    <p class="shared-empty" id="sharedEmpty">Nothing shared yet — once a friend's okay with it, their answer will show up right here.</p>
     <div class="shared-list" id="sharedList"></div>
   </section>
 
@@ -613,6 +747,7 @@
   const mutedIcon = '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 9l5 5M21 9l-5 5" stroke-linecap="round"/></svg>';
   const loudIcon = '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 8a5 5 0 010 8M19 5a9 9 0 010 14" stroke-linecap="round"/></svg>';
   const zoomIcon = '<svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const playIcon = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 8l6 4-6 4V8z" fill="currentColor" stroke="none"/></svg>';
 
   // Column counts for the grid/flow layouts: admin-configured mobile/desktop
   // base values (site_content.gallery_cols_mobile/_desktop), with a little
@@ -628,8 +763,155 @@
     else if (frameCount > 9) cols += 1;
     return Math.max(1, Math.round(cols));
   }
-  function applyMosaicCols(frameCount) {
-    mosaicEl.style.setProperty('--cols', computeCols(frameCount));
+
+  // Flow layout packs each photo into whichever column is currently
+  // shortest, which needs each one's height. Every column is the same
+  // width, so the aspect ratio (height/width) is all that matters.
+  // Ratios aren't known until the media reports its dimensions, so the
+  // first pass treats everything as square (giving plain left-to-right
+  // order) and repacks once the real numbers come in.
+  const ratioCache = new Map();
+  function probeRatio(f) {
+    if (ratioCache.has(f.src)) return Promise.resolve(ratioCache.get(f.src));
+    return new Promise(resolve => {
+      const done = (r) => { ratioCache.set(f.src, r > 0 ? r : 1); resolve(ratioCache.get(f.src)); };
+      if (f.type === 'video') {
+        const v = document.createElement('video');
+        v.preload = 'metadata';
+        v.addEventListener('loadedmetadata', () => done(v.videoWidth ? v.videoHeight / v.videoWidth : 1), {once: true});
+        v.addEventListener('error', () => done(1), {once: true});
+        v.src = f.src;
+      } else {
+        const img = new Image();
+        img.onload = () => done(img.naturalWidth ? img.naturalHeight / img.naturalWidth : 1);
+        img.onerror = () => done(1);
+        img.src = f.src;
+      }
+    });
+  }
+  // Flow lays its own tiles out, absolutely positioned, so the centrepiece
+  // can sit in the middle as an obstacle the rest of the wall packs around
+  // -- above it, below it and either side. flowRelayout holds each
+  // container's layout function so a resize or a late ratio can re-run it
+  // without rebuilding any elements.
+  const flowRelayout = new WeakMap();
+  const FLOW_GAP = 8;
+  const FLOW_STAGGER = [0, 22, 8, 30, 14, 26];
+
+  function layoutFlow(container, rest, items, heroFrame, heroEl, cols, seedBase) {
+    const W = container.clientWidth;
+    if (!W) return;
+    const ratioOf = (f) => ratioCache.has(f.src) ? ratioCache.get(f.src) : 1;
+
+    // With a centrepiece the wall needs to be tall enough to close over it,
+    // so columns are capped to keep roughly three photos stacked in each --
+    // many thin columns leave a wall barely taller than the centrepiece
+    // itself, with nowhere for anything to sit above it. The floor of three
+    // keeps it from collapsing to one giant full-width tile when there are
+    // only a photo or two to wrap it with.
+    let n = Math.max(1, Math.min(cols, Math.max(1, rest.length)));
+    if (heroEl) {
+      if (rest.length > 2) n = Math.min(n, Math.ceil(rest.length / 3));
+      n = Math.max(n, Math.min(cols, 3));
+    }
+    const colW = (W - FLOW_GAP * (n - 1)) / n;
+    const colX = (c) => c * (colW + FLOW_GAP);
+
+    // Tallest first: a tall photo placed late lands on whatever column is
+    // shortest right then, with nothing short enough left to even the rest
+    // back up, so that one column overshoots everything else.
+    const order = rest.map((f, i) => i).sort((a, b) => ratioOf(rest[b]) - ratioOf(rest[a]));
+
+    // A small fixed stagger per column -- a deliberate "not lined up" touch,
+    // so the unevenness reads as intentional rather than as a packing slip.
+    function pack(apply, heroTop, heroBottom, heroCol) {
+      // Same random sequence every run, so a resize or a late-arriving
+      // ratio re-lays out to the same arrangement the viewer already sees.
+      let seed = seedBase;
+      const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+      const start = (i) => FLOW_STAGGER[i % FLOW_STAGGER.length];
+      // The two columns the centrepiece sits in are filled in two parts --
+      // the strip above it and everything below -- so a photo too tall for
+      // the gap above doesn't write the gap off for the shorter ones after it.
+      const aboveY = Array.from({length: n}, (_, i) => start(i));
+      const belowY = Array.from({length: n}, (_, i) => start(i));
+      const isHeroCol = (c) => heroBottom > 0 && (c === heroCol || c === heroCol + 1);
+      if (heroBottom > 0) {
+        if (heroCol < n) belowY[heroCol] = heroBottom + FLOW_GAP;
+        if (heroCol + 1 < n) belowY[heroCol + 1] = heroBottom + FLOW_GAP;
+      }
+      const slotY = (c, h) => (isHeroCol(c) && aboveY[c] + h <= heroTop) ? aboveY[c] : belowY[c];
+
+      for (const i of order) {
+        const h = colW * ratioOf(rest[i]);
+        // Among the columns close to shortest rather than strictly the
+        // shortest -- dead-level columns read as too tidy for a photo wall.
+        // Tall photos naturally skip the centrepiece's columns here, since
+        // their only slot there is way below it.
+        let minY = Infinity;
+        for (let c = 0; c < n; c++) minY = Math.min(minY, slotY(c, h));
+        const tol = minY * 0.22 + 18;
+        const cands = [];
+        for (let c = 0; c < n; c++) if (slotY(c, h) <= minY + tol) cands.push(c);
+        const c = cands.length ? cands[Math.floor(rand() * cands.length)] : 0;
+        const y = slotY(c, h);
+        if (apply) {
+          const el = items[i];
+          el.style.left = colX(c) + 'px';
+          el.style.top = y + 'px';
+          el.style.width = colW + 'px';
+          el.style.height = h + 'px';
+        }
+        if (isHeroCol(c) && y === aboveY[c] && y + h <= heroTop) aboveY[c] = y + h + FLOW_GAP;
+        else belowY[c] = y + h + FLOW_GAP;
+      }
+      return belowY;
+    }
+
+    let heroTop = 0, heroBottom = -1, heroCol = -1;
+    if (heroEl) {
+      const twoUp = n >= 2;
+      const heroW = twoUp ? colW * 2 + FLOW_GAP : W;
+      const heroH = heroW * ratioOf(heroFrame);
+      heroCol = twoUp ? Math.max(0, Math.floor((n - 2) / 2)) : 0;
+      // Where the wall lands without it, plus the two columns' worth of
+      // space it will displace, gives the height to centre it against.
+      const bare = pack(false, 0, -1, -1);
+      const wallH = Math.max.apply(null, bare) + (heroH + FLOW_GAP) * (twoUp ? 2 : n) / n;
+      heroTop = twoUp ? Math.max(0, (wallH - heroH) / 2) : 0;
+      heroBottom = heroTop + heroH;
+      heroEl.style.left = colX(heroCol) + 'px';
+      heroEl.style.top = heroTop + 'px';
+      heroEl.style.width = heroW + 'px';
+      heroEl.style.height = heroH + 'px';
+    }
+
+    const colY = pack(true, heroTop, heroBottom, heroCol);
+    container.style.height = Math.ceil(Math.max(Math.max.apply(null, colY), heroBottom + FLOW_GAP)) + 'px';
+  }
+
+  function renderFlow(container, frames, cols) {
+    const heroIdx = frames.findIndex(f => f.hero);
+    const heroFrame = heroIdx >= 0 ? frames[heroIdx] : null;
+    const rest = heroFrame ? frames.filter((f, i) => i !== heroIdx) : frames;
+    const items = rest.map(f => { const el = buildMosaicItem(f, 'flow'); container.appendChild(el); return el; });
+    const heroEl = heroFrame ? buildMosaicItem(heroFrame, 'flow') : null;
+    if (heroEl) { heroEl.classList.add('flow-hero'); container.appendChild(heroEl); }
+
+    const seedBase = Math.floor(Math.random() * 1e9);
+    const run = () => layoutFlow(container, rest, items, heroFrame, heroEl, cols, seedBase);
+    flowRelayout.set(container, run);
+    run();
+
+    const unknown = frames.filter(f => !ratioCache.has(f.src));
+    if (unknown.length) {
+      Promise.all(unknown.map(probeRatio)).then(() => {
+        if (container.isConnected && flowRelayout.get(container) === run) run();
+      });
+    }
+  }
+  function applyMosaicCols(container, frameCount) {
+    container.style.setProperty('--cols', computeCols(frameCount));
   }
 
   // The zoom icon (or a double-click/double-tap) opens a photo/video at
@@ -667,10 +949,29 @@
   lightboxEl.addEventListener('click', (e) => { if (e.target === lightboxEl) closeLightbox(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
 
-  function layoutScatterPositions() {
-    const items = Array.from(mosaicEl.querySelectorAll('.mosaic-item'));
-    if (!items.length) { mosaicEl.style.height = ''; return; }
-    const containerWidth = mosaicEl.clientWidth || 320;
+  /* =========================================================
+     1a. SECTION NAV (hamburger) -- a jump-menu so the page
+         doesn't have to be scrolled start to finish once there
+         are a lot of responses. "Photos from friends" and
+         "Shared answers" links (plus the shared-answers
+         subsections, one per question) only appear once those
+         sections actually have something to show.
+     ========================================================= */
+  const navToggle = document.getElementById('navToggle');
+  const navOverlay = document.getElementById('navOverlay');
+  const navClose = document.getElementById('navClose');
+  function openNav() { navOverlay.classList.add('open'); navToggle.setAttribute('aria-expanded', 'true'); }
+  function closeNav() { navOverlay.classList.remove('open'); navToggle.setAttribute('aria-expanded', 'false'); }
+  navToggle.addEventListener('click', openNav);
+  navClose.addEventListener('click', closeNav);
+  navOverlay.addEventListener('click', (e) => { if (e.target === navOverlay) closeNav(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNav(); });
+  navOverlay.querySelectorAll('a').forEach(a => a.addEventListener('click', closeNav));
+
+  function layoutScatterPositions(container) {
+    const items = Array.from(container.querySelectorAll('.mosaic-item'));
+    if (!items.length) { container.style.height = ''; return; }
+    const containerWidth = container.clientWidth || 320;
     const tileW = containerWidth < 480 ? 104 : (containerWidth < 800 ? 128 : 150);
     const cols = Math.max(2, Math.floor(containerWidth / (tileW * 0.8)));
     let maxBottom = 0;
@@ -690,85 +991,133 @@
       item.style.transform = `rotate(${rot.toFixed(2)}deg)`;
       maxBottom = Math.max(maxBottom, top + tileW * 1.15);
     });
-    mosaicEl.style.height = Math.ceil(maxBottom + 20) + 'px';
+    container.style.height = Math.ceil(maxBottom + 20) + 'px';
   }
 
-  function renderMosaic(frames, layout) {
+  function buildMosaicItem(f, layout) {
+    const item = document.createElement('div');
+    item.className = 'mosaic-item';
+    item.tabIndex = 0;
+    let media;
+    if (f.type === 'video') {
+      media = document.createElement('video');
+      media.src = f.src; media.muted = true; media.loop = true; media.playsInline = true; media.preload = 'metadata';
+      media.addEventListener('loadedmetadata', () => {
+        try { media.currentTime = Math.min(0.15, (media.duration || 1) / 2); } catch (e) {}
+      });
+      item.appendChild(media);
+
+      const muteBtn = document.createElement('button');
+      muteBtn.type = 'button';
+      muteBtn.className = 'mosaic-mute';
+      muteBtn.setAttribute('aria-label', 'Toggle sound');
+      muteBtn.innerHTML = mutedIcon;
+      muteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        media.muted = !media.muted;
+        muteBtn.innerHTML = media.muted ? mutedIcon : loudIcon;
+      });
+      item.appendChild(muteBtn);
+
+      const play = () => { media.play().catch(() => {}); };
+      const pause = () => { media.pause(); };
+      item.addEventListener('mouseenter', play);
+      item.addEventListener('mouseleave', pause);
+      item.addEventListener('touchstart', () => { media.paused ? play() : pause(); }, {passive: true});
+    } else {
+      media = document.createElement('img');
+      media.src = f.src; media.alt = f.caption || ''; media.loading = 'lazy'; media.decoding = 'async';
+      item.appendChild(media);
+    }
+    const zoomBtn = document.createElement('button');
+    zoomBtn.type = 'button';
+    zoomBtn.className = 'mosaic-zoom';
+    zoomBtn.setAttribute('aria-label', 'Enlarge');
+    zoomBtn.innerHTML = zoomIcon;
+    zoomBtn.addEventListener('click', (e) => { e.stopPropagation(); openLightbox(f); });
+    item.appendChild(zoomBtn);
+
+    if (f.caption) {
+      const cap = document.createElement('div');
+      cap.className = 'mosaic-cap';
+      cap.textContent = f.caption;
+      item.appendChild(cap);
+    }
+    if (layout === 'scatter') {
+      item.addEventListener('mouseenter', () => { item.style.transform = 'rotate(0deg) scale(1.2)'; item.style.zIndex = '5'; });
+      item.addEventListener('mouseleave', () => { item.style.transform = `rotate(${item.dataset.baseRot || 0}deg)`; item.style.zIndex = ''; });
+    }
+    item.addEventListener('dblclick', (e) => { e.stopPropagation(); openLightbox(f); });
+    return item;
+  }
+
+  function renderMosaic(container, frames, layout, colsFrameCount) {
     layout = layout || 'grid';
-    mosaicEl.innerHTML = '';
-    mosaicEl.className = 'mosaic layout-' + layout;
-    mosaicEl.style.height = '';
-    frames.forEach(f => {
-      const item = document.createElement('div');
-      item.className = 'mosaic-item';
-      item.tabIndex = 0;
-      let media;
-      if (f.type === 'video') {
-        media = document.createElement('video');
-        media.src = f.src; media.muted = true; media.loop = true; media.playsInline = true; media.preload = 'metadata';
-        media.addEventListener('loadedmetadata', () => {
-          try { media.currentTime = Math.min(0.15, (media.duration || 1) / 2); } catch (e) {}
-        });
-        item.appendChild(media);
+    container.innerHTML = '';
+    container.className = 'mosaic layout-' + layout;
+    container.style.height = '';
+    const cols = computeCols(colsFrameCount != null ? colsFrameCount : frames.length);
+    // What the resize handler compares against, to tell a column-count
+    // change (needs a rebuild) from a plain resize (just needs re-laying out).
+    container.dataset.cols = cols;
 
-        const muteBtn = document.createElement('button');
-        muteBtn.type = 'button';
-        muteBtn.className = 'mosaic-mute';
-        muteBtn.setAttribute('aria-label', 'Toggle sound');
-        muteBtn.innerHTML = mutedIcon;
-        muteBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          media.muted = !media.muted;
-          muteBtn.innerHTML = media.muted ? mutedIcon : loudIcon;
-        });
-        item.appendChild(muteBtn);
+    // One photo can be marked the centrepiece in admin (gallery_items.is_hero).
+    const heroIdx = frames.findIndex(f => f.hero);
+    const heroFrame = heroIdx >= 0 ? frames[heroIdx] : null;
 
-        const play = () => { media.play().catch(() => {}); };
-        const pause = () => { media.pause(); };
-        item.addEventListener('mouseenter', play);
-        item.addEventListener('mouseleave', pause);
-        item.addEventListener('touchstart', () => { media.paused ? play() : pause(); }, {passive: true});
-      } else {
-        media = document.createElement('img');
-        media.src = f.src; media.alt = f.caption || ''; media.loading = 'lazy'; media.decoding = 'async';
-        item.appendChild(media);
-      }
-      const zoomBtn = document.createElement('button');
-      zoomBtn.type = 'button';
-      zoomBtn.className = 'mosaic-zoom';
-      zoomBtn.setAttribute('aria-label', 'Enlarge');
-      zoomBtn.innerHTML = zoomIcon;
-      zoomBtn.addEventListener('click', (e) => { e.stopPropagation(); openLightbox(f); });
-      item.appendChild(zoomBtn);
+    if (layout === 'flow') {
+      container.style.removeProperty('--cols');
+      renderFlow(container, frames, cols);
+      return;
+    }
 
-      if (f.caption) {
-        const cap = document.createElement('div');
-        cap.className = 'mosaic-cap';
-        cap.textContent = f.caption;
-        item.appendChild(cap);
-      }
-      if (layout === 'scatter') {
-        item.addEventListener('mouseenter', () => { item.style.transform = 'rotate(0deg) scale(1.2)'; item.style.zIndex = '5'; });
-        item.addEventListener('mouseleave', () => { item.style.transform = `rotate(${item.dataset.baseRot || 0}deg)`; item.style.zIndex = ''; });
-      }
-      item.addEventListener('dblclick', (e) => { e.stopPropagation(); openLightbox(f); });
-      mosaicEl.appendChild(item);
-    });
-    if (layout === 'grid' || layout === 'flow') applyMosaicCols(frames.length);
-    else mosaicEl.style.removeProperty('--cols');
-    if (layout === 'scatter') requestAnimationFrame(layoutScatterPositions);
+    const els = frames.map(f => container.appendChild(buildMosaicItem(f, layout)));
+    if (layout === 'grid') {
+      applyMosaicCols(container, colsFrameCount != null ? colsFrameCount : frames.length);
+      // In the fixed grid the centrepiece takes a 2x2 block and the rest
+      // backfill around it.
+      if (heroFrame) {
+        container.style.gridAutoFlow = 'dense';
+        els[heroIdx].style.gridColumn = 'span 2';
+        els[heroIdx].style.gridRow = 'span 2';
+      } else container.style.removeProperty('grid-auto-flow');
+    } else container.style.removeProperty('--cols');
+    if (layout === 'scatter') requestAnimationFrame(() => layoutScatterPositions(container));
   }
 
+  // "Photos from friends" renders through this exact same component --
+  // same layout options, same hover/zoom/caption behavior -- just fed a
+  // second, independent frame list into its own container. Column count
+  // is driven by the MAIN gallery's photo count (not its own), so the two
+  // galleries always show the same number of columns.
+  const friendsMosaicEl = document.getElementById('friendsMosaic');
   let galleryLayout = 'grid';
   let lastFrames = FRAMES;
-  function rerenderMosaic() { renderMosaic(lastFrames, galleryLayout); }
+  let lastFriendsFrames = [];
+  function rerenderMosaic() { renderMosaic(mosaicEl, lastFrames, galleryLayout); }
+  function rerenderFriendsMosaic() { renderMosaic(friendsMosaicEl, lastFriendsFrames, galleryLayout, lastFrames.length); }
   rerenderMosaic();
 
   let colsResizeTimer = null;
   window.addEventListener('resize', () => {
     clearTimeout(colsResizeTimer);
     colsResizeTimer = setTimeout(() => {
-      if (galleryLayout === 'grid' || galleryLayout === 'flow') applyMosaicCols(lastFrames.length);
+      if (galleryLayout === 'grid') {
+        applyMosaicCols(mosaicEl, lastFrames.length);
+        if (lastFriendsFrames.length) applyMosaicCols(friendsMosaicEl, lastFrames.length);
+      } else if (galleryLayout === 'flow') {
+        // Flow positions its own tiles, so any width change needs the
+        // positions recomputed. A changed column count needs a full
+        // re-render; otherwise just re-run the layout, which keeps the
+        // existing elements (and any playing video preview) intact.
+        const want = computeCols(lastFrames.length);
+        const relayout = (el, rerender) => {
+          if (+el.dataset.cols !== want) rerender();
+          else { const run = flowRelayout.get(el); if (run) run(); }
+        };
+        relayout(mosaicEl, rerenderMosaic);
+        if (lastFriendsFrames.length) relayout(friendsMosaicEl, rerenderFriendsMosaic);
+      }
     }, 150);
   });
 
@@ -812,10 +1161,18 @@
         is live in the questions table, if reachable.
      ========================================================= */
   const FALLBACK_QUESTIONS = [
-    {id: null, prompt: "What's a memory or shared experience you'll remember me by?", subtitle: ''},
-    {id: null, prompt: "What are some of your favorite things about me?", subtitle: ''},
+    {id: null, prompt: "What's a memory or shared experience you'll remember me by?", subtitle: '', required: true},
+    {id: null, prompt: "What are some of your favorite things about me?", subtitle: '', required: true},
   ];
   const MAX_SECONDS = 90;
+  // Per-answer "okay to share" checkbox text, shown inside every
+  // question card. Editable from admin.html's site-text tab (same
+  // field that used to label one global checkbox); refreshShareOptLabels()
+  // re-applies it to whatever cards are on screen once that loads.
+  let shareOptLabelText = "It's okay to share this answer with others reading this page (my call either way — he still decides what actually gets posted)";
+  function refreshShareOptLabels() {
+    document.querySelectorAll('.qshare-label-text').forEach(el => { el.textContent = shareOptLabelText; });
+  }
 
   function pickMime(kind) {
     const candidates = kind === 'video'
@@ -868,13 +1225,22 @@
 
       const head = document.createElement('div');
       head.className = 'qcard-head';
+      const headLeft = document.createElement('div');
+      headLeft.className = 'qhead-left';
       const num = document.createElement('span');
       num.className = 'qnum';
       num.textContent = 'Question ' + (idx + 1);
+      headLeft.appendChild(num);
+      if (q.required === false) {
+        const opt = document.createElement('span');
+        opt.className = 'qoptional';
+        opt.textContent = 'optional';
+        headLeft.appendChild(opt);
+      }
       const check = document.createElement('span');
       check.className = 'qcheck';
       check.textContent = '✓ answered';
-      head.appendChild(num);
+      head.appendChild(headLeft);
       head.appendChild(check);
 
       const h2 = document.createElement('h2');
@@ -899,6 +1265,22 @@
       }
       card.appendChild(modesEl);
       card.appendChild(panelEl);
+
+      const shareRow = document.createElement('label');
+      shareRow.className = 'share-opt qshare-opt';
+      const shareCb = document.createElement('input');
+      shareCb.type = 'checkbox';
+      shareCb.addEventListener('change', () => {
+        state[qid].share = shareCb.checked;
+        updateShareNameVisibility();
+      });
+      const shareLabelText = document.createElement('span');
+      shareLabelText.className = 'qshare-label-text';
+      shareLabelText.textContent = shareOptLabelText;
+      shareRow.appendChild(shareCb);
+      shareRow.appendChild(shareLabelText);
+      card.appendChild(shareRow);
+
       container.appendChild(card);
 
       registerReveal(card);
@@ -907,12 +1289,12 @@
   }
 
   function buildQuestion(qid) {
-    state[qid] = {mode:null, text:'', blob:null, mimeType:'', ext:''};
+    state[qid] = {mode:null, text:'', blob:null, mimeType:'', ext:'', share:false};
     const card = document.querySelector(`.qcard[data-qid="${qid}"]`);
     const modesEl = card.querySelector('.modes');
     const panelEl = card.querySelector('.mode-panel');
 
-    ['text','video','audio'].forEach(mode => {
+    ['video','audio','text'].forEach(mode => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'mode-btn';
@@ -923,7 +1305,7 @@
       modesEl.appendChild(btn);
     });
 
-    setMode(qid, canRecord ? 'text' : 'text', modesEl, panelEl);
+    setMode(qid, canRecord ? 'video' : 'text', modesEl, panelEl);
   }
 
   function setMode(qid, mode, modesEl, panelEl) {
@@ -1092,10 +1474,38 @@
         of the wording at submit time, so editing or retiring a
         question later never rewrites what an existing answer shows.
      ========================================================= */
+  // Admin-controlled: when true, anything a friend says is okay to
+  // share -- a submission's answers (-> shared_approved) or a photo
+  // drop (-> approved) -- goes public right away instead of waiting
+  // on admin review. Admin can still un-approve any of it later from
+  // admin.html regardless of this setting -- it only decides the
+  // starting state. Set from site_content.auto_approve_shared.
+  let autoApproveShared = false;
   const form = document.getElementById('responseForm');
   const statusEl = document.getElementById('formStatus');
   const submitBtn = document.getElementById('submitBtn');
-  const okToShareEl = document.getElementById('okToShare');
+  const shareNameWrap = document.getElementById('shareNameWrap');
+  const okToShareNameEl = document.getElementById('okToShareName');
+  const shareNameFieldWrap = document.getElementById('shareNameFieldWrap');
+  const shareDisplayNameEl = document.getElementById('shareDisplayName');
+
+  // Sharing a name is a follow-up to sharing at least one answer, so
+  // it only appears once any per-question "okay to share" box is
+  // checked, and collapses (unchecked) if the friend unchecks all of them.
+  function updateShareNameVisibility() {
+    const anyShare = Object.values(state).some(s => s && s.share);
+    shareNameWrap.hidden = !anyShare;
+    if (!anyShare) {
+      okToShareNameEl.checked = false;
+      shareNameFieldWrap.hidden = true;
+    }
+  }
+  okToShareNameEl.addEventListener('change', () => {
+    shareNameFieldWrap.hidden = !okToShareNameEl.checked;
+    if (okToShareNameEl.checked && !shareDisplayNameEl.value.trim()) {
+      shareDisplayNameEl.value = document.getElementById('friendName').value.trim();
+    }
+  });
 
   function setStatus(msg, kind) {
     statusEl.textContent = msg;
@@ -1117,13 +1527,17 @@
       const q = currentQuestions[idx];
       const qid = qidFor(q, idx);
       const s = state[qid];
-      if (!s || !s.mode) { setStatus('Answer every question however you like — even one line is fine.', 'error'); return; }
+      const isOptional = q.required === false;
+      if (!isAnswered(qid)) {
+        if (isOptional) continue; // friend chose to skip it — nothing to insert
+        if (!s || !s.mode) { setStatus('Answer every question however you like — even one line is fine.', 'error'); return; }
+        if (s.mode === 'text') { setStatus('That answer looks empty — add a line or switch to video/voice.', 'error'); return; }
+        setStatus('Finish recording (or upload a file) for every question first.', 'error'); return;
+      }
       if (s.mode === 'text') {
-        if (!s.text || !s.text.trim()) { setStatus('That answer looks empty — add a line or switch to video/voice.', 'error'); return; }
-        answerPlans.push({question_id: q.id, question_prompt: q.prompt, position: idx, kind: 'text', text_value: s.text.trim()});
+        answerPlans.push({question_id: q.id, question_prompt: q.prompt, position: idx, kind: 'text', text_value: s.text.trim(), share: !!s.share});
       } else {
-        if (!s.blob) { setStatus('Finish recording (or upload a file) for every question first.', 'error'); return; }
-        answerPlans.push({question_id: q.id, question_prompt: q.prompt, position: idx, kind: s.mode, blob: s.blob, ext: s.ext});
+        answerPlans.push({question_id: q.id, question_prompt: q.prompt, position: idx, kind: s.mode, blob: s.blob, ext: s.ext, share: !!s.share});
       }
     }
 
@@ -1134,10 +1548,15 @@
 
     try {
       const submissionId = newId();
+      const anyShare = answerPlans.some(a => a.share);
+      const shareName = !!(anyShare && okToShareNameEl && okToShareNameEl.checked);
       const { error: subErr } = await supa.from('submissions').insert({
         id: submissionId,
         friend_name: name,
-        ok_to_share: !!(okToShareEl && okToShareEl.checked),
+        ok_to_share: anyShare,
+        ok_to_share_name: shareName,
+        display_name: shareName ? (shareDisplayNameEl.value.trim() || name) : null,
+        shared_approved: anyShare && autoApproveShared,
       });
       if (subErr) throw subErr;
 
@@ -1162,6 +1581,7 @@
           kind: a.kind,
           text_value: a.text_value || null,
           file_path: filePath,
+          ok_to_share: !!a.share,
         });
         if (ansErr) throw ansErr;
       }
@@ -1171,6 +1591,10 @@
       document.getElementById('doneState').classList.add('reveal');
       requestAnimationFrame(() => document.getElementById('doneState').classList.add('in'));
       window.scrollTo({top: document.getElementById('doneState').offsetTop - 60, behavior:'smooth'});
+      // Auto-approved means it's public now -- but "Shared answers"
+      // already rendered once at page load, before this submission
+      // existed, so without this it wouldn't show up until a refresh.
+      if (anyShare && autoApproveShared) loadSharedAnswers();
     } catch (err) {
       console.error(err);
       setStatus('Something went wrong sending that — try again?', 'error');
@@ -1193,12 +1617,13 @@
         'txt-eyebrow': d.eyebrow, 'txt-heading': d.heading,
         'txt-intro1': d.intro_p1, 'txt-intro2': d.intro_p2,
         'txt-namelabel': d.name_label, 'txt-submitsub': d.submit_sub,
-        'txt-shareoptlabel': d.share_opt_label,
+        'txt-sharenamelabel': d.share_name_label, 'txt-sharenamefieldlabel': d.share_name_field_label,
         'txt-doneheading': d.done_heading, 'txt-donebody': d.done_body,
         'txt-footer': d.footer,
         'txt-owheading': d.ow_heading, 'txt-owsub': d.ow_sub,
         'txt-owtriggerlabel': d.ow_trigger_label, 'txt-owdone': d.ow_done_text,
         'txt-pdheading': d.pd_heading, 'txt-pdsub': d.pd_sub, 'txt-pddone': d.pd_done_text,
+        'txt-pdshareoptlabel': d.pd_share_opt_label,
         'txt-psheading': d.photoshare_heading, 'txt-pssub': d.photoshare_sub,
         'txt-sharedheading': d.shared_heading, 'txt-sharedsub': d.shared_sub,
       };
@@ -1218,6 +1643,13 @@
       if (d.pd_dropzone_text) document.getElementById('pdDzText').textContent = d.pd_dropzone_text;
       if (d.pd_caption_placeholder) document.getElementById('pdCaption').placeholder = d.pd_caption_placeholder;
       if (d.pd_submit_label) document.getElementById('pdSubmitBtn').textContent = d.pd_submit_label;
+      if (d.share_name_placeholder) shareDisplayNameEl.placeholder = d.share_name_placeholder;
+      // share_opt_label now labels a per-question checkbox (one per
+      // question card) rather than one static element, so it's applied
+      // to a JS variable and re-stamped onto whatever cards exist now.
+      if (d.share_opt_label) { shareOptLabelText = d.share_opt_label; refreshShareOptLabels(); }
+      else if (d.share_opt_label === '') { shareOptLabelText = ''; refreshShareOptLabels(); }
+      autoApproveShared = !!d.auto_approve_shared;
       let needsRerender = false;
       if (d.gallery_layout && ['grid','flow','scatter'].includes(d.gallery_layout)) {
         galleryLayout = d.gallery_layout;
@@ -1228,7 +1660,7 @@
         if (d.gallery_cols_desktop) adminCols.desktop = d.gallery_cols_desktop;
         needsRerender = true;
       }
-      if (needsRerender) rerenderMosaic();
+      if (needsRerender) { rerenderMosaic(); rerenderFriendsMosaic(); }
     } catch (e) { console.error('site_content load failed', e); }
   }
 
@@ -1244,6 +1676,7 @@
           : `${SUPABASE_URL}/storage/v1/object/public/gallery/${row.storage_path}`,
         caption: row.caption || '',
         type: row.kind === 'video' ? 'video' : 'image',
+        hero: !!row.is_hero,
       }));
       rerenderMosaic();
     } catch (e) { console.error('gallery load failed', e); }
@@ -1255,7 +1688,7 @@
       const { data, error } = await supa.from('questions').select('*')
         .eq('active', true).order('position', {ascending: true});
       if (error || !data || !data.length) return;
-      buildQuestionsUI(data.map(q => ({id: q.id, prompt: q.prompt, subtitle: q.subtitle || ''})));
+      buildQuestionsUI(data.map(q => ({id: q.id, prompt: q.prompt, subtitle: q.subtitle || '', required: q.required !== false})));
     } catch (e) { console.error('questions load failed', e); }
   }
 
@@ -1265,7 +1698,6 @@
 
   async function loadSharedAnswers() {
     if (!supa) return;
-    const section = document.getElementById('sharedSection');
     const list = document.getElementById('sharedList');
     try {
       const { data: subs, error } = await supa.from('submissions').select('*')
@@ -1274,69 +1706,140 @@
 
       const { data: answersData, error: ansErr } = await supa.from('answers').select('*')
         .in('submission_id', subs.map(s => s.id)).order('position', {ascending: true});
-      if (ansErr || !answersData) return;
+      if (ansErr || !answersData || !answersData.length) return;
+
+      // Only questions still live today get a group -- an answer whose
+      // question has since been retired (or replaced by "save as new
+      // question") is archived in admin but no longer shown here. The
+      // group title is the question's CURRENT wording, not whatever the
+      // answer's frozen snapshot says, since a same-question reword means
+      // these answers now belong to that current wording.
+      const { data: liveQuestions, error: qErr } = await supa.from('questions').select('id, prompt')
+        .eq('active', true).order('position', {ascending: true});
+      if (qErr || !liveQuestions || !liveQuestions.length) return;
+
+      const subsById = {};
+      subs.forEach(s => { subsById[s.id] = s; });
+
+      const answersByQuestion = new Map();
+      for (const a of answersData) {
+        // The submission being approved to appear publicly is only half
+        // of it -- each answer also needs its own "okay to share" from
+        // the friend, so one shared answer never drags along a sibling
+        // answer they kept private.
+        if (!a.ok_to_share) continue;
+        if (!subsById[a.submission_id] || !a.question_id) continue;
+        if (!answersByQuestion.has(a.question_id)) answersByQuestion.set(a.question_id, []);
+        answersByQuestion.get(a.question_id).push(a);
+      }
+
+      const groups = liveQuestions
+        .filter(q => answersByQuestion.has(q.id))
+        .map(q => ({prompt: q.prompt, answers: answersByQuestion.get(q.id)}));
+      if (!groups.length) return;
 
       list.innerHTML = '';
-      for (const sub of subs) {
-        const card = document.createElement('div');
-        card.className = 'shared-card';
-        const who = document.createElement('div');
-        who.className = 'who';
-        who.textContent = initials(sub.friend_name);
-        card.appendChild(who);
+      const sublistEl = document.getElementById('navSharedSublist');
+      sublistEl.innerHTML = '';
+      let qIndex = 0;
+      for (const {prompt, answers} of groups) {
+        const qgroup = document.createElement('div');
+        qgroup.className = 'shared-qgroup';
+        qgroup.id = 'shared-q-' + qIndex++;
 
-        for (const a of answersData.filter(x => x.submission_id === sub.id)) {
-          const wrap = document.createElement('div');
-          wrap.className = 'shared-answer';
-          const sq = document.createElement('div');
-          sq.className = 'sq';
-          sq.textContent = a.question_prompt;
-          wrap.appendChild(sq);
+        const subLink = document.createElement('a');
+        subLink.className = 'nav-sublink';
+        subLink.href = '#' + qgroup.id;
+        subLink.textContent = prompt.length > 46 ? prompt.slice(0, 44) + '…' : prompt;
+        subLink.addEventListener('click', closeNav);
+        sublistEl.appendChild(subLink);
+
+        const title = document.createElement('div');
+        title.className = 'shared-qtitle';
+        title.textContent = prompt;
+        qgroup.appendChild(title);
+
+        const grid = document.createElement('div');
+        grid.className = 'shared-grid';
+
+        for (const a of answers) {
+          const sub = subsById[a.submission_id];
+          const tile = document.createElement('div');
+          tile.className = 'shared-tile';
+          const who = document.createElement('div');
+          who.className = 'who';
+          who.textContent = (sub.ok_to_share_name && sub.display_name) ? sub.display_name : initials(sub.friend_name);
+          tile.appendChild(who);
+
           if (a.kind === 'text') {
             const p = document.createElement('p');
             p.textContent = a.text_value;
-            wrap.appendChild(p);
+            tile.appendChild(p);
           } else if (a.file_path) {
             const { data: signed } = await supa.storage.from('responses').createSignedUrl(a.file_path, 3600);
             if (signed && signed.signedUrl) {
-              const el = document.createElement(a.kind === 'video' ? 'video' : 'audio');
-              el.src = signed.signedUrl; el.controls = true;
-              wrap.appendChild(el);
+              if (a.kind === 'video') {
+                const thumb = document.createElement('div');
+                thumb.className = 'shared-media-thumb';
+                thumb.setAttribute('role', 'button');
+                thumb.setAttribute('tabindex', '0');
+                thumb.setAttribute('aria-label', 'Play video answer');
+                const vid = document.createElement('video');
+                vid.src = signed.signedUrl; vid.muted = true; vid.preload = 'metadata'; vid.playsInline = true;
+                thumb.appendChild(vid);
+                const play = document.createElement('span');
+                play.className = 'shared-media-play';
+                play.innerHTML = playIcon;
+                thumb.appendChild(play);
+                const openIt = () => openLightbox({type: 'video', src: signed.signedUrl, caption: prompt});
+                thumb.addEventListener('click', openIt);
+                thumb.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openIt(); } });
+                tile.appendChild(thumb);
+              } else {
+                const el = document.createElement('audio');
+                el.src = signed.signedUrl; el.controls = true;
+                tile.appendChild(el);
+              }
             }
           }
-          card.appendChild(wrap);
+          grid.appendChild(tile);
         }
-        list.appendChild(card);
+        qgroup.appendChild(grid);
+        list.appendChild(qgroup);
       }
-      section.hidden = false;
-      registerReveal(section);
+      document.getElementById('sharedEmpty').hidden = true;
     } catch (e) { console.error('shared answers load failed', e); }
   }
 
   async function loadPhotoShares() {
     if (!supa) return;
-    const section = document.getElementById('photoShareSection');
-    const grid = document.getElementById('photoShareGrid');
+    const emptyEl = document.getElementById('psEmpty');
     try {
       const { data, error } = await supa.from('photo_drops').select('*')
         .eq('approved', true).order('created_at', {ascending: false});
       if (error || !data || !data.length) return;
-      grid.innerHTML = '';
+      const frames = [];
       for (const row of data) {
         const { data: signed } = await supa.storage.from('responses').createSignedUrl(row.storage_path, 3600);
         if (!signed || !signed.signedUrl) continue;
-        const card = document.createElement('div');
-        card.className = 'pshare-card';
-        const img = document.createElement('img');
-        img.src = signed.signedUrl; img.loading = 'lazy'; img.alt = row.caption || '';
-        card.appendChild(img);
-        const cap = document.createElement('div');
-        cap.className = 'pshare-cap';
-        cap.textContent = (row.caption ? row.caption + ' — ' : '') + initials(row.friend_name);
-        card.appendChild(cap);
-        grid.appendChild(card);
+        // Caption + a "Photo Credits" line become the one caption line the
+        // mosaic shows under each tile -- same component, same treatment
+        // as the main gallery, just a second independent frame list.
+        const credit = 'Photo Credits - ' + row.friend_name;
+        frames.push({
+          src: signed.signedUrl,
+          type: row.kind === 'video' ? 'video' : 'image',
+          caption: row.caption ? (row.caption + ' — ' + credit) : credit,
+        });
       }
-      if (grid.children.length) { section.hidden = false; registerReveal(section); }
+      if (frames.length) {
+        lastFriendsFrames = frames;
+        // Unhidden first: flow measures the container to lay its tiles out,
+        // and a hidden container measures zero wide.
+        document.getElementById('friendsMosaicWrap').hidden = false;
+        emptyEl.hidden = true;
+        rerenderFriendsMosaic();
+      }
     } catch (e) { console.error('photo drops load failed', e); }
   }
 
@@ -1400,7 +1903,7 @@
   });
   pdFileInput.addEventListener('change', () => {
     const f = pdFileInput.files[0];
-    document.getElementById('pdDzText').textContent = f ? f.name : 'Tap to choose a photo';
+    document.getElementById('pdDzText').textContent = f ? f.name : 'Tap to choose a photo, video, or GIF';
   });
 
   function compressImageBlob(file, maxDim, quality) {
@@ -1428,21 +1931,48 @@
     const caption = document.getElementById('pdCaption').value.trim();
     const file = pdFileInput.files[0];
     if (!name) { pdStatusEl.textContent = 'Fill in your name up top first.'; pdStatusEl.className = 'status error'; return; }
-    if (!file) { pdStatusEl.textContent = 'Choose a photo first.'; pdStatusEl.className = 'status error'; return; }
+    if (!file) { pdStatusEl.textContent = 'Choose a photo, video, or GIF first.'; pdStatusEl.className = 'status error'; return; }
     if (!supa) { pdStatusEl.textContent = 'Not connected yet — tell Shubham.'; pdStatusEl.className = 'status error'; return; }
+
+    const isVideo = file.type.startsWith('video/');
+    const isGif = file.type === 'image/gif';
 
     document.getElementById('pdSubmitBtn').disabled = true;
     pdStatusEl.textContent = 'Sending...'; pdStatusEl.className = 'status';
     try {
-      const blob = await compressImageBlob(file, 1600, 0.8);
+      let blob, ext, contentType, kind;
+      if (isVideo) {
+        // Uploaded exactly as recorded, same as gallery videos -- re-encoding
+        // in-browser isn't worth the quality loss for a clip this short-lived.
+        blob = file; kind = 'video';
+        contentType = file.type || 'video/mp4';
+        ext = (file.name.split('.').pop() || 'mp4').toLowerCase();
+      } else if (isGif) {
+        // Left untouched -- running it through compressImageBlob's canvas
+        // would flatten the animation down to a single static frame.
+        blob = file; kind = 'image'; contentType = 'image/gif'; ext = 'gif';
+      } else {
+        blob = await compressImageBlob(file, 1600, 0.8);
+        kind = 'image'; contentType = 'image/jpeg'; ext = 'jpg';
+      }
       const safeName = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) || 'friend';
-      const path = `photodrop-${safeName}-${Date.now()}.jpg`;
-      const { error: upErr } = await supa.storage.from('responses').upload(path, blob, { contentType: 'image/jpeg' });
+      const path = `photodrop-${safeName}-${Date.now()}.${ext}`;
+      const { error: upErr } = await supa.storage.from('responses').upload(path, blob, { contentType });
       if (upErr) throw upErr;
-      const { error } = await supa.from('photo_drops').insert({ friend_name: name, storage_path: path, caption: caption || null });
+      const okToShare = !!document.getElementById('pdOkToShare').checked;
+      const autoApproved = okToShare && autoApproveShared;
+      const { error } = await supa.from('photo_drops').insert({
+        friend_name: name, storage_path: path, caption: caption || null, kind,
+        ok_to_share: okToShare,
+        approved: autoApproved,
+      });
       if (error) throw error;
       pdForm.hidden = true;
       document.getElementById('pdDone').hidden = false;
+      // Auto-approved means it's public now -- but "Photos from friends"
+      // already rendered once at page load, before this row existed, so
+      // without this it wouldn't actually show up until a manual refresh.
+      if (autoApproved) loadPhotoShares();
     } catch (err) {
       console.error(err);
       pdStatusEl.textContent = 'Something went wrong — try again?'; pdStatusEl.className = 'status error';

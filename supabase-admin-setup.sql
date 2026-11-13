@@ -16,6 +16,7 @@ create table public.questions (
   subtitle text,
   position integer not null default 0,
   active boolean not null default true,
+  required boolean not null default true,
   created_at timestamptz not null default now()
 );
 alter table public.questions enable row level security;
@@ -40,6 +41,8 @@ create table public.submissions (
   id uuid primary key default gen_random_uuid(),
   friend_name text not null,
   ok_to_share boolean not null default false,
+  ok_to_share_name boolean not null default false,
+  display_name text,
   shared_approved boolean not null default false,
   created_at timestamptz not null default now()
 );
@@ -76,6 +79,7 @@ create table public.answers (
   kind text not null check (kind in ('text','video','audio')),
   text_value text,
   file_path text,
+  ok_to_share boolean not null default false,
   created_at timestamptz not null default now()
 );
 alter table public.answers enable row level security;
@@ -124,8 +128,10 @@ using (
 create table public.photo_drops (
   id uuid primary key default gen_random_uuid(),
   friend_name text not null,
+  kind text not null default 'image' check (kind in ('image','video')),
   storage_path text not null,
   caption text,
+  ok_to_share boolean not null default false,
   approved boolean not null default false,
   created_at timestamptz not null default now()
 );
@@ -209,8 +215,11 @@ create table public.gallery_items (
   storage_path text not null,
   caption text,
   position integer not null default 0,
+  is_hero boolean not null default false,
   created_at timestamptz not null default now()
 );
+-- At most one centrepiece photo at a time.
+create unique index gallery_items_one_hero on public.gallery_items (is_hero) where is_hero;
 alter table public.gallery_items enable row level security;
 
 create policy "anyone can read gallery items"
