@@ -92,7 +92,12 @@
   .qrow.inactive{ opacity:.5; }
 
   /* gallery grid in admin */
-  .gitem{ background:var(--bg-elevated); border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:.8rem; }
+  .gitem{ position:relative; background:var(--bg-elevated); border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:.8rem; }
+  .gitem.selected{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+  .gitem .sel-check{
+    position:absolute; top:6px; left:6px; z-index:2; width:22px; height:22px;
+    accent-color:var(--accent); cursor:pointer;
+  }
   .gitem .thumb{ width:100%; aspect-ratio:4/3; object-fit:cover; display:block; background:#000; }
   .gitem .meta{ padding:.6rem .7rem; }
   .gitem input[type=text]{ margin-bottom:.4rem; }
@@ -205,15 +210,20 @@
       <button class="btn" id="seedBtn">Load the 9 current photos</button>
     </div>
     <div class="card">
-      <h3>Add a photo or video</h3>
-      <div class="dropzone" id="dropzone">Tap to choose a photo or video from your phone</div>
-      <input type="file" id="fileInput" accept="image/*,video/*" hidden>
-      <div class="field" style="margin-top:.8rem;"><label>Caption (optional)</label><input type="text" id="newCaption" placeholder="a one-line memory"></div>
+      <h3>Add photos or videos</h3>
+      <p class="muted" style="margin-bottom:.6rem;">Pick as many as you like at once. Every video gets re-encoded at a capped size/bitrate regardless of how big the original is — keep this tab open and in the foreground while a batch runs; it processes one at a time, each roughly as long as its own length.</p>
+      <div class="dropzone" id="dropzone">Tap to choose photos or videos from your phone</div>
+      <input type="file" id="fileInput" accept="image/*,video/*" multiple hidden>
+      <div class="field" style="margin-top:.8rem;"><label>Caption for all of them (optional — same caption, or leave blank)</label><input type="text" id="newCaption" placeholder="a one-line memory"></div>
       <p class="progress-line" id="uploadProgress"></p>
       <p class="status-msg" id="galleryStatus"></p>
     </div>
     <div class="card">
-      <h3>Current gallery (<span id="galCount">0</span>)</h3>
+      <div class="row">
+        <h3 style="flex:1;">Current gallery (<span id="galCount">0</span>)</h3>
+        <button class="btn small" id="selectAllBtn">Select all</button>
+        <button class="btn small danger" id="deleteSelectedBtn" disabled>Delete selected (<span id="selCount">0</span>)</button>
+      </div>
       <div class="gitems-grid" id="gitemsGrid"></div>
     </div>
   </section>
@@ -432,6 +442,18 @@
     {key:'done_body', label:'Thank-you body text', type:'textarea'},
     {key:'footer', label:'Footer line', type:'text'},
     {key:'mosaic_note', label:'Line under the photo gallery', type:'text'},
+    {key:'ow_heading', label:'"Open when" section heading', type:'text'},
+    {key:'ow_sub', label:'"Open when" section subtext', type:'text'},
+    {key:'ow_trigger_label', label:'"Open when" field label', type:'text'},
+    {key:'ow_trigger_placeholder', label:'"Open when" field placeholder text', type:'text'},
+    {key:'ow_submit_label', label:'"Open when" submit button text', type:'text'},
+    {key:'ow_done_text', label:'"Open when" thank-you text', type:'text'},
+    {key:'pd_heading', label:'Photo drop section heading', type:'text'},
+    {key:'pd_sub', label:'Photo drop section subtext', type:'text'},
+    {key:'pd_dropzone_text', label:'Photo drop upload box text', type:'text'},
+    {key:'pd_caption_placeholder', label:'Photo drop caption placeholder', type:'text'},
+    {key:'pd_submit_label', label:'Photo drop submit button text', type:'text'},
+    {key:'pd_done_text', label:'Photo drop thank-you text', type:'text'},
   ];
   const LAYOUTS = [
     {key:'grid', title:'Grid', desc:'Fixed box, photos cropped to fill it edge-to-edge. Compact, consistent, never grows.'},
@@ -453,6 +475,18 @@
     done_body: "This means more than you know. See you before I'm fully gone — and definitely before I'm back.",
     footer: 'made with whatever time was left before the flight',
     mosaic_note: "six months of this city — hover one for a closer look",
+    ow_heading: 'Leave something for later',
+    ow_sub: "a note I'm not supposed to read yet — I won't, until it's time",
+    ow_trigger_label: 'Open when...',
+    ow_trigger_placeholder: "you're missing New York / it's been a year / you need a laugh",
+    ow_submit_label: 'Seal it',
+    ow_done_text: "Sealed. I won't look until it's time.",
+    pd_heading: "Got a photo of me I've never seen?",
+    pd_sub: 'drop it here — I decide what goes public, the rest stays just for me',
+    pd_dropzone_text: 'Tap to choose a photo',
+    pd_caption_placeholder: 'caption (optional)',
+    pd_submit_label: 'Send the photo',
+    pd_done_text: 'Got it. Thank you.',
   };
 
   let siteData = {};
@@ -609,13 +643,35 @@
       : `${SUPABASE_URL}/storage/v1/object/public/gallery/${row.storage_path}`;
   }
 
+  const gallerySelection = new Set();
+
+  function updateBulkDeleteBtn() {
+    const btn = document.getElementById('deleteSelectedBtn');
+    document.getElementById('selCount').textContent = gallerySelection.size;
+    btn.disabled = gallerySelection.size === 0;
+  }
+
   function renderGalleryAdmin() {
     document.getElementById('galCount').textContent = galleryCache.length;
     const grid = document.getElementById('gitemsGrid');
     grid.innerHTML = '';
+    const liveIds = new Set(galleryCache.map(r => r.id));
+    Array.from(gallerySelection).forEach(id => { if (!liveIds.has(id)) gallerySelection.delete(id); });
+
     galleryCache.forEach((row, i) => {
       const el = document.createElement('div');
-      el.className = 'gitem';
+      el.className = 'gitem' + (gallerySelection.has(row.id) ? ' selected' : '');
+
+      const sel = document.createElement('input');
+      sel.type = 'checkbox'; sel.className = 'sel-check';
+      sel.checked = gallerySelection.has(row.id);
+      sel.addEventListener('change', () => {
+        if (sel.checked) gallerySelection.add(row.id); else gallerySelection.delete(row.id);
+        el.classList.toggle('selected', sel.checked);
+        updateBulkDeleteBtn();
+      });
+      el.appendChild(sel);
+
       const media = document.createElement(row.kind === 'video' ? 'video' : 'img');
       media.className = 'thumb';
       media.src = mediaUrl(row);
@@ -639,13 +695,14 @@
       const downBtn = document.createElement('button'); downBtn.className='btn small'; downBtn.textContent='↓'; downBtn.disabled = i===galleryCache.length-1;
       downBtn.addEventListener('click', () => moveGalleryItem(i, 1));
       const delBtn = document.createElement('button'); delBtn.className='btn small danger'; delBtn.textContent='Delete';
-      delBtn.addEventListener('click', () => deleteGalleryItem(row));
+      delBtn.addEventListener('click', () => deleteGalleryItems([row]));
       ctrls.appendChild(upBtn); ctrls.appendChild(downBtn); ctrls.appendChild(delBtn);
       meta.appendChild(ctrls);
 
       el.appendChild(meta);
       grid.appendChild(el);
     });
+    updateBulkDeleteBtn();
   }
 
   async function moveGalleryItem(index, dir) {
@@ -658,13 +715,27 @@
     await loadGalleryAdmin();
   }
 
-  async function deleteGalleryItem(row) {
-    await supa.from('gallery_items').delete().eq('id', row.id);
-    if (!row.storage_path.startsWith('http')) {
-      await supa.storage.from('gallery').remove([row.storage_path]);
-    }
+  async function deleteGalleryItems(rows) {
+    const paths = rows.filter(r => !r.storage_path.startsWith('http')).map(r => r.storage_path);
+    await Promise.all(rows.map(r => supa.from('gallery_items').delete().eq('id', r.id)));
+    if (paths.length) await supa.storage.from('gallery').remove(paths);
+    rows.forEach(r => gallerySelection.delete(r.id));
     await loadGalleryAdmin();
   }
+
+  document.getElementById('selectAllBtn').addEventListener('click', () => {
+    const allSelected = galleryCache.length > 0 && galleryCache.every(r => gallerySelection.has(r.id));
+    if (allSelected) gallerySelection.clear();
+    else galleryCache.forEach(r => gallerySelection.add(r.id));
+    renderGalleryAdmin();
+  });
+
+  document.getElementById('deleteSelectedBtn').addEventListener('click', async () => {
+    const rows = galleryCache.filter(r => gallerySelection.has(r.id));
+    if (!rows.length) return;
+    if (!confirm(`Delete ${rows.length} item${rows.length===1?'':'s'}? This can't be undone.`)) return;
+    await deleteGalleryItems(rows);
+  });
 
   document.getElementById('seedBtn').addEventListener('click', async () => {
     const base = location.href.replace(/admin\.html.*$/, '');
@@ -768,49 +839,63 @@
     });
   }
 
+  async function uploadOneGalleryFile(file, caption, label, nextPosition) {
+    const progressEl = document.getElementById('uploadProgress');
+    const isVideo = file.type.startsWith('video/');
+    let blob, ext;
+    if (isVideo) {
+      // every video gets re-encoded, regardless of original size — the
+      // point is a consistent, predictable output size as the library grows
+      progressEl.textContent = label + 'Compressing video... 0%';
+      blob = await compressVideo(file, { onProgress: p => { progressEl.textContent = label + 'Compressing video... ' + Math.round(p*100) + '%'; } });
+      ext = (blob === file) ? (file.name.split('.').pop() || 'mp4') : 'webm';
+    } else {
+      progressEl.textContent = label + 'Compressing image...';
+      blob = await compressImage(file, 1600, 0.8);
+      ext = 'jpg';
+    }
+
+    progressEl.textContent = label + 'Uploading...';
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+    const { error: upErr } = await supa.storage.from('gallery').upload(path, blob, { contentType: blob.type || undefined });
+    if (upErr) throw upErr;
+
+    const { error: insErr } = await supa.from('gallery_items').insert({
+      kind: isVideo ? 'video' : 'image', storage_path: path, caption: caption || null, position: nextPosition,
+    });
+    if (insErr) throw insErr;
+  }
+
   fileInput.addEventListener('change', async () => {
-    const file = fileInput.files[0];
-    if (!file) return;
+    const files = Array.from(fileInput.files || []);
+    if (!files.length) return;
     const caption = document.getElementById('newCaption').value.trim();
     const progressEl = document.getElementById('uploadProgress');
     const statusEl = document.getElementById('galleryStatus');
     statusEl.textContent = ''; statusEl.className = 'status-msg';
-    const isVideo = file.type.startsWith('video/');
 
-    try {
-      let blob, ext;
-      if (isVideo) {
-        progressEl.textContent = file.size > 12*1024*1024 ? 'Compressing video... 0%' : 'Preparing...';
-        blob = file.size > 12*1024*1024
-          ? await compressVideo(file, { onProgress: p => { progressEl.textContent = 'Compressing video... ' + Math.round(p*100) + '%'; } })
-          : file;
-        ext = (blob === file) ? (file.name.split('.').pop() || 'mp4') : 'webm';
-      } else {
-        progressEl.textContent = 'Compressing image...';
-        blob = await compressImage(file, 1600, 0.8);
-        ext = 'jpg';
+    let nextPosition = galleryCache.reduce((m,q)=>Math.max(m,q.position), -1) + 1;
+    let done = 0, failed = 0;
+    for (const file of files) {
+      const label = files.length > 1 ? `File ${done + failed + 1} of ${files.length}: ` : '';
+      try {
+        await uploadOneGalleryFile(file, caption, label, nextPosition);
+        nextPosition++;
+        done++;
+      } catch (e) {
+        failed++;
+        console.error('upload failed for', file.name, e);
       }
-
-      progressEl.textContent = 'Uploading...';
-      const path = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
-      const { error: upErr } = await supa.storage.from('gallery').upload(path, blob, { contentType: blob.type || undefined });
-      if (upErr) throw upErr;
-
-      const maxPos = galleryCache.reduce((m,q)=>Math.max(m,q.position), -1);
-      const { error: insErr } = await supa.from('gallery_items').insert({
-        kind: isVideo ? 'video' : 'image', storage_path: path, caption: caption || null, position: maxPos + 1,
-      });
-      if (insErr) throw insErr;
-
-      progressEl.textContent = '';
-      statusEl.textContent = 'Added.'; statusEl.className = 'status-msg good';
-      document.getElementById('newCaption').value = '';
-      fileInput.value = '';
-      await loadGalleryAdmin();
-    } catch (e) {
-      progressEl.textContent = '';
-      statusEl.textContent = e.message || 'Upload failed.'; statusEl.className = 'status-msg error';
     }
+
+    progressEl.textContent = '';
+    statusEl.textContent = failed
+      ? `Added ${done}, ${failed} failed — check the console or try those again.`
+      : `Added ${done}.`;
+    statusEl.className = 'status-msg ' + (failed ? 'error' : 'good');
+    document.getElementById('newCaption').value = '';
+    fileInput.value = '';
+    await loadGalleryAdmin();
   });
 
   /* =========================================================

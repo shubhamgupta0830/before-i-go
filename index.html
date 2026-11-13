@@ -485,11 +485,11 @@
 
   <section class="openwhen-wrap reveal">
     <div class="divider"><span class="line"></span><span class="mark">✦</span><span class="line"></span></div>
-    <h2 class="shared-heading">Leave something for later</h2>
-    <p class="shared-sub">a note I'm not supposed to read yet — I won't, until it's time</p>
+    <h2 class="shared-heading" id="txt-owheading">Leave something for later</h2>
+    <p class="shared-sub" id="txt-owsub">a note I'm not supposed to read yet — I won't, until it's time</p>
     <form id="openWhenForm">
       <div class="field-plain">
-        <label for="owTrigger">Open when...</label>
+        <label for="owTrigger" id="txt-owtriggerlabel">Open when...</label>
         <input type="text" id="owTrigger" placeholder="you're missing New York / it's been a year / you need a laugh">
       </div>
       <div class="qcard" data-qid="openwhen">
@@ -499,13 +499,13 @@
       <button type="submit" class="btn primary block" id="owSubmitBtn">Seal it</button>
       <p class="status" id="owStatus"></p>
     </form>
-    <div class="done small" id="owDone" hidden><p>Sealed. I won't look until it's time.</p></div>
+    <div class="done small" id="owDone" hidden><p id="txt-owdone">Sealed. I won't look until it's time.</p></div>
   </section>
 
   <section class="photodrop-wrap reveal">
     <div class="divider"><span class="line"></span><span class="mark">✦</span><span class="line"></span></div>
-    <h2 class="shared-heading">Got a photo of me I've never seen?</h2>
-    <p class="shared-sub">drop it here — I decide what goes public, the rest stays just for me</p>
+    <h2 class="shared-heading" id="txt-pdheading">Got a photo of me I've never seen?</h2>
+    <p class="shared-sub" id="txt-pdsub">drop it here — I decide what goes public, the rest stays just for me</p>
     <form id="photoDropForm">
       <label class="dropzone-public" id="pdDropzone">
         <input type="file" id="pdFileInput" accept="image/*" hidden>
@@ -515,7 +515,7 @@
       <button type="submit" class="btn primary block" id="pdSubmitBtn">Send the photo</button>
       <p class="status" id="pdStatus"></p>
     </form>
-    <div class="done small" id="pdDone" hidden><p>Got it. Thank you.</p></div>
+    <div class="done small" id="pdDone" hidden><p id="txt-pddone">Got it. Thank you.</p></div>
   </section>
 
   <section class="photoshare-wrap reveal" id="photoShareSection" hidden>
@@ -1068,11 +1068,19 @@
         'txt-namelabel': d.name_label, 'txt-submitsub': d.submit_sub,
         'txt-doneheading': d.done_heading, 'txt-donebody': d.done_body,
         'txt-footer': d.footer, 'txt-mosaicnote': d.mosaic_note,
+        'txt-owheading': d.ow_heading, 'txt-owsub': d.ow_sub,
+        'txt-owtriggerlabel': d.ow_trigger_label, 'txt-owdone': d.ow_done_text,
+        'txt-pdheading': d.pd_heading, 'txt-pdsub': d.pd_sub, 'txt-pddone': d.pd_done_text,
       };
       Object.keys(map).forEach(id => {
         if (map[id]) { const el = document.getElementById(id); if (el) el.textContent = map[id]; }
       });
       if (d.submit_label) submitBtn.textContent = d.submit_label;
+      if (d.ow_trigger_placeholder) document.getElementById('owTrigger').placeholder = d.ow_trigger_placeholder;
+      if (d.ow_submit_label) document.getElementById('owSubmitBtn').textContent = d.ow_submit_label;
+      if (d.pd_dropzone_text) document.getElementById('pdDzText').textContent = d.pd_dropzone_text;
+      if (d.pd_caption_placeholder) document.getElementById('pdCaption').placeholder = d.pd_caption_placeholder;
+      if (d.pd_submit_label) document.getElementById('pdSubmitBtn').textContent = d.pd_submit_label;
       if (d.gallery_layout && ['grid','flow','scatter'].includes(d.gallery_layout)) {
         galleryLayout = d.gallery_layout;
         rerenderMosaic();
