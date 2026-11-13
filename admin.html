@@ -789,6 +789,22 @@
   // Re-encodes a video at a capped resolution/bitrate by playing it through
   // a canvas and re-recording — real compression, no server or big wasm lib
   // needed, at the cost of taking roughly as long as the clip itself.
+  // Reads a blob's reported duration via a throwaway <video>, so the
+  // compressed result can be checked against the source before it's
+  // trusted — a short/stalled compression falls back to the original
+  // rather than silently shipping a video that looks broken.
+  function readDuration(blob) {
+    return new Promise(resolve => {
+      const v = document.createElement('video');
+      const url = URL.createObjectURL(blob);
+      v.preload = 'metadata'; v.src = url;
+      const done = (d) => { URL.revokeObjectURL(url); resolve(d); };
+      v.onloadedmetadata = () => done(v.duration || 0);
+      v.onerror = () => done(0);
+      setTimeout(() => done(0), 8000); // don't hang forever on a weird file
+    });
+  }
+
   function compressVideo(file, { maxDim = 1280, videoBitsPerSecond = 2000000, audioBitsPerSecond = 128000, onProgress } = {}) {
     return new Promise((resolve, reject) => {
       const srcVideo = document.createElement('video');
@@ -799,6 +815,7 @@
       if (!hasCapture || !window.MediaRecorder) { resolve(file); return; } // unsupported: upload original
 
       srcVideo.onloadedmetadata = () => {
+        const sourceDuration = srcVideo.duration || 0;
         let w = srcVideo.videoWidth, h = srcVideo.videoHeight;
         if (Math.max(w, h) > maxDim) {
           if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
@@ -819,19 +836,45 @@
 
         const chunks = [];
         recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
-        recorder.onstop = () => {
+        recorder.onstop = async () => {
           URL.revokeObjectURL(srcVideo.src);
-          resolve(new Blob(chunks, { type: recorder.mimeType || 'video/webm' }));
+          const compressed = new Blob(chunks, { type: recorder.mimeType || 'video/webm' });
+          // Verify before trusting it: the draw loop stalling partway
+          // through (a buffering hiccup, a backgrounded tab) produces
+          // a file with full-length audio but a frozen/truncated
+          // video track — catch that here instead of uploading it.
+          if (sourceDuration > 0) {
+            const outDuration = await readDuration(compressed);
+            if (outDuration < sourceDuration * 0.9) {
+              console.warn('compression looked short/stalled (' + outDuration.toFixed(1) + 's of ' + sourceDuration.toFixed(1) + 's) — using the original file instead');
+              resolve(file);
+              return;
+            }
+          }
+          resolve(compressed);
         };
 
         let raf;
+        let stalled = false;
         function draw() {
-          if (srcVideo.paused || srcVideo.ended) return;
-          ctx.drawImage(srcVideo, 0, 0, w, h);
+          if (srcVideo.ended) return;
+          if (srcVideo.paused) {
+            // a transient buffering/decode stall — DO NOT abandon the
+            // loop, just skip drawing this tick and keep checking
+            stalled = true;
+            raf = requestAnimationFrame(draw);
+            return;
+          }
+          stalled = false;
+          try { ctx.drawImage(srcVideo, 0, 0, w, h); } catch (e) { /* skip this frame, keep going */ }
           if (onProgress && srcVideo.duration) onProgress(srcVideo.currentTime / srcVideo.duration);
           raf = requestAnimationFrame(draw);
         }
         srcVideo.onended = () => { cancelAnimationFrame(raf); if (recorder.state === 'recording') recorder.stop(); };
+        // backstop: if something stops 'ended' from ever firing, don't
+        // record forever — stop a couple of seconds past the known duration
+        const maxWaitMs = sourceDuration > 0 ? (sourceDuration + 3) * 1000 : 5 * 60 * 1000;
+        setTimeout(() => { if (recorder.state === 'recording') { cancelAnimationFrame(raf); recorder.stop(); } }, maxWaitMs);
         recorder.start();
         srcVideo.play().then(draw).catch(() => { resolve(file); });
       };
