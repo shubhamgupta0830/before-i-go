@@ -87,7 +87,9 @@
   /* questions */
   .qrow{ display:flex; gap:.6rem; align-items:flex-start; padding:.8rem 0; border-bottom:1px solid var(--line); }
   .qrow:last-child{ border-bottom:none; }
-  .qrow textarea{ flex:1; min-height:50px; }
+  .qrow .qfields{ flex:1; display:flex; flex-direction:column; gap:.4rem; min-width:0; }
+  .qrow .qfields textarea{ min-height:50px; }
+  .qrow .qfields input[type=text]{ font-size:.82rem; color:var(--muted); }
   .qrow .qctrls{ display:flex; flex-direction:column; gap:.3rem; }
   .qrow.inactive{ opacity:.5; }
 
@@ -596,9 +598,22 @@
       const row = document.createElement('div');
       row.className = 'qrow' + (q.active ? '' : ' inactive');
 
+      const fields = document.createElement('div');
+      fields.className = 'qfields';
+
       const ta = document.createElement('textarea');
       ta.value = q.prompt;
+      ta.placeholder = 'Question prompt';
       ta.addEventListener('input', () => { q._dirty = true; q.prompt = ta.value; });
+
+      const subInput = document.createElement('input');
+      subInput.type = 'text';
+      subInput.value = q.subtitle || '';
+      subInput.placeholder = 'Subtitle shown under the question (optional)';
+      subInput.addEventListener('input', () => { q._dirty = true; q.subtitle = subInput.value; });
+
+      fields.appendChild(ta);
+      fields.appendChild(subInput);
 
       const ctrls = document.createElement('div');
       ctrls.className = 'qctrls';
@@ -619,14 +634,14 @@
       saveBtn.addEventListener('click', () => saveQuestionText(q, saveBtn));
 
       ctrls.appendChild(upBtn); ctrls.appendChild(downBtn); ctrls.appendChild(toggleBtn); ctrls.appendChild(saveBtn);
-      row.appendChild(ta); row.appendChild(ctrls);
+      row.appendChild(fields); row.appendChild(ctrls);
       wrap.appendChild(row);
     });
   }
 
   async function saveQuestionText(q, btn) {
     btn.disabled = true;
-    const { error } = await supa.from('questions').update({ prompt: q.prompt }).eq('id', q.id);
+    const { error } = await supa.from('questions').update({ prompt: q.prompt, subtitle: q.subtitle || null }).eq('id', q.id);
     btn.disabled = false;
     const statusEl = document.getElementById('questionsStatus');
     statusEl.textContent = error ? (error.message) : 'Saved — only future answers use the new wording.';
