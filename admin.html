@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Before I Go — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,450;0,9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0e0c12; --bg-elevated:#18151d; --card:#1c1821; --fg:#f5f1ea;
+    --muted:#a69d8f; --muted-dim:#716a60; --accent:#e8b84b; --accent-soft:rgba(232,184,75,.12);
+    --line:#2d2730; --danger:#e2645f; --good:#5fb88a;
+    color-scheme: dark;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--fg); font-family:'Inter',system-ui,sans-serif;
+    font-size:15px; line-height:1.5; padding-bottom:4rem;
+  }
+  h1,h2,h3{font-family:'Fraunces',serif; font-weight:600; margin:0;}
+  .wrap{max-width:760px; margin:0 auto; padding:0 max(18px, env(safe-area-inset-left,0px)) 2rem max(18px, env(safe-area-inset-right,0px));}
+  img,video{max-width:100%;}
+  [hidden]{display:none!important;}
+
+  header.top{ padding:1.6rem 0 1.2rem; text-align:center; }
+  header.top h1{ font-size:1.5rem; }
+  header.top p{ color:var(--muted-dim); font-size:.82rem; margin:.3rem 0 0; }
+
+  .login-box{
+    max-width:360px; margin:4rem auto; background:var(--card); border:1px solid var(--line);
+    border-radius:16px; padding:2rem;
+  }
+  .login-box h2{ text-align:center; font-size:1.2rem; margin-bottom:1.4rem; }
+  .field{ margin-bottom:1rem; }
+  .field label{ display:block; font-size:.78rem; color:var(--muted-dim); margin-bottom:.4rem; }
+  input[type=email], input[type=password], input[type=text], textarea, select{
+    width:100%; background:var(--bg-elevated); border:1px solid var(--line); border-radius:8px;
+    padding:.65rem .8rem; font-size:.92rem; color:var(--fg); font-family:inherit;
+  }
+  textarea{ resize:vertical; min-height:70px; }
+  input:focus, textarea:focus, select:focus{ outline:none; border-color:var(--accent); }
+
+  .btn{
+    font-family:inherit; font-size:.85rem; font-weight:600; border-radius:999px; padding:.6rem 1.1rem;
+    cursor:pointer; border:1px solid var(--line); background:var(--bg-elevated); color:var(--fg);
+    display:inline-flex; align-items:center; gap:.4rem;
+  }
+  .btn.primary{ background:var(--accent); color:#1a1508; border-color:var(--accent); }
+  .btn.danger{ background:transparent; color:var(--danger); border-color:var(--danger); }
+  .btn.small{ padding:.4rem .75rem; font-size:.78rem; }
+  .btn:disabled{ opacity:.45; cursor:not-allowed; }
+  .btn.block{ width:100%; justify-content:center; }
+
+  nav.tabs{ display:flex; gap:.4rem; margin:1.2rem 0 1.4rem; flex-wrap:wrap; }
+  nav.tabs button{
+    flex:1 1 auto; font-family:inherit; font-size:.82rem; font-weight:600; padding:.6rem .5rem;
+    border-radius:10px; border:1px solid var(--line); background:var(--bg-elevated); color:var(--muted);
+    cursor:pointer;
+  }
+  nav.tabs button.active{ background:var(--accent-soft); border-color:var(--accent); color:var(--accent); }
+
+  .panel{ display:none; }
+  .panel.active{ display:block; }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:1.2rem 1.3rem; margin-bottom:1rem; }
+  .card h3{ font-size:1rem; margin-bottom:.9rem; }
+  .muted{ color:var(--muted-dim); font-size:.8rem; }
+  .status-msg{ font-size:.82rem; margin-top:.6rem; }
+  .status-msg.error{ color:var(--danger); }
+  .status-msg.good{ color:var(--good); }
+  .row{ display:flex; gap:.6rem; align-items:center; }
+  .row.wrap{ flex-wrap:wrap; }
+  .spacer{ flex:1; }
+
+  /* layout picker */
+  .layout-opt{
+    display:flex; gap:.7rem; align-items:flex-start; padding:.7rem; border:1px solid var(--line);
+    border-radius:10px; margin-bottom:.5rem; cursor:pointer;
+  }
+  .layout-opt.active{ border-color:var(--accent); background:var(--accent-soft); }
+  .layout-opt input{ margin-top:.2rem; }
+  .layout-opt .t{ font-weight:600; font-size:.88rem; }
+  .layout-opt .d{ font-size:.78rem; color:var(--muted-dim); }
+
+  /* questions */
+  .qrow{ display:flex; gap:.6rem; align-items:flex-start; padding:.8rem 0; border-bottom:1px solid var(--line); }
+  .qrow:last-child{ border-bottom:none; }
+  .qrow textarea{ flex:1; min-height:50px; }
+  .qrow .qctrls{ display:flex; flex-direction:column; gap:.3rem; }
+  .qrow.inactive{ opacity:.5; }
+
+  /* gallery grid in admin */
+  .gitem{ background:var(--bg-elevated); border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:.8rem; }
+  .gitem .thumb{ width:100%; aspect-ratio:4/3; object-fit:cover; display:block; background:#000; }
+  .gitem .meta{ padding:.6rem .7rem; }
+  .gitem input[type=text]{ margin-bottom:.4rem; }
+  .gitems-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:.8rem; }
+  .dropzone{
+    border:2px dashed var(--line); border-radius:12px; padding:1.4rem; text-align:center; cursor:pointer;
+    color:var(--muted-dim); font-size:.85rem;
+  }
+  .dropzone:hover{ border-color:var(--accent); color:var(--muted); }
+  .progress-line{ font-size:.8rem; color:var(--accent); margin-top:.5rem; }
+
+  /* responses */
+  .sub-card{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:1.1rem 1.2rem; margin-bottom:.9rem; }
+  .sub-card .shead{ display:flex; align-items:center; gap:.6rem; margin-bottom:.7rem; flex-wrap:wrap; }
+  .sub-card .sname{ font-family:'Fraunces',serif; font-weight:600; font-size:1.05rem; }
+  .sub-card .stime{ font-size:.72rem; color:var(--muted-dim); }
+  .badge{ font-size:.68rem; padding:.2rem .5rem; border-radius:999px; font-weight:600; }
+  .badge.share{ background:rgba(95,184,138,.15); color:var(--good); }
+  .ans-block{ margin:.7rem 0; padding-top:.7rem; border-top:1px solid var(--line); }
+  .ans-block:first-of-type{ border-top:none; padding-top:0; }
+  .ans-block .q{ font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted-dim); margin-bottom:.4rem; }
+  .ans-block p{ margin:0; font-family:'Fraunces',serif; font-size:.95rem; }
+  .ans-block video, .ans-block audio{ width:100%; border-radius:8px; margin-top:.3rem; }
+  .share-toggle{ display:flex; align-items:center; gap:.5rem; margin-top:.8rem; font-size:.82rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>Before I Go — admin</h1>
+  <p>text, questions, gallery, and responses — edit from here, anytime</p>
+</header>
+
+<div id="loginBox" class="login-box">
+  <h2>Sign in</h2>
+  <div class="field"><label>Email</label><input type="email" id="loginEmail" autocomplete="username"></div>
+  <div class="field"><label>Password</label><input type="password" id="loginPass" autocomplete="current-password"></div>
+  <button class="btn primary block" id="loginBtn">Sign in</button>
+  <p class="status-msg" id="loginStatus"></p>
+</div>
+
+<div id="dash" hidden>
+  <div class="row">
+    <span class="muted" id="whoami"></span>
+    <span class="spacer"></span>
+    <button class="btn small" id="signOutBtn">Sign out</button>
+  </div>
+
+  <nav class="tabs">
+    <button data-tab="text" class="active">Text</button>
+    <button data-tab="questions">Questions</button>
+    <button data-tab="gallery">Gallery</button>
+    <button data-tab="responses">Responses</button>
+  </nav>
+
+  <!-- ===================== TEXT ===================== -->
+  <section class="panel active" id="panel-text">
+    <div class="card">
+      <h3>Gallery layout</h3>
+      <div id="layoutOpts"></div>
+    </div>
+    <div class="card">
+      <h3>Page text</h3>
+      <div id="textFields"></div>
+      <button class="btn primary" id="saveTextBtn">Save text</button>
+      <p class="status-msg" id="textStatus"></p>
+    </div>
+  </section>
+
+  <!-- ===================== QUESTIONS ===================== -->
+  <section class="panel" id="panel-questions">
+    <div class="card">
+      <h3>Questions</h3>
+      <p class="muted" style="margin-bottom:.8rem;">Editing a question's wording only changes what's shown going forward — answers already received keep the exact wording they were asked. Deactivating hides a question from the page but keeps its answers.</p>
+      <div id="questionsList"></div>
+      <button class="btn" id="addQuestionBtn" style="margin-top:.8rem;">+ Add question</button>
+      <p class="status-msg" id="questionsStatus"></p>
+    </div>
+  </section>
+
+  <!-- ===================== GALLERY ===================== -->
+  <section class="panel" id="panel-gallery">
+    <div class="card" id="seedCard" hidden>
+      <h3>Starter photos</h3>
+      <p class="muted" style="margin-bottom:.8rem;">The gallery database is empty. Load the 9 photos already on the live page in as a starting point?</p>
+      <button class="btn" id="seedBtn">Load the 9 current photos</button>
+    </div>
+    <div class="card">
+      <h3>Add a photo or video</h3>
+      <div class="dropzone" id="dropzone">Tap to choose a photo or video from your phone</div>
+      <input type="file" id="fileInput" accept="image/*,video/*" hidden>
+      <div class="field" style="margin-top:.8rem;"><label>Caption (optional)</label><input type="text" id="newCaption" placeholder="a one-line memory"></div>
+      <p class="progress-line" id="uploadProgress"></p>
+      <p class="status-msg" id="galleryStatus"></p>
+    </div>
+    <div class="card">
+      <h3>Current gallery (<span id="galCount">0</span>)</h3>
+      <div class="gitems-grid" id="gitemsGrid"></div>
+    </div>
+  </section>
+
+  <!-- ===================== RESPONSES ===================== -->
+  <section class="panel" id="panel-responses">
+    <div class="card">
+      <div class="row"><h3 style="flex:1;">Responses</h3><button class="btn small" id="refreshRespBtn">Refresh</button></div>
+      <p class="muted" id="respCount" style="margin-bottom:.5rem;"></p>
+    </div>
+    <div id="responsesList"></div>
+  </section>
+
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  const SUPABASE_URL = 'https://keyogsilqjdnivwzjmlv.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_qoVauUWpUaD0NKa999s-pQ_KsULvU8M';
+  const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const loginBox = document.getElementById('loginBox');
+  const dash = document.getElementById('dash');
+  const whoami = document.getElementById('whoami');
+
+  /* ---------------- AUTH ---------------- */
+  document.getElementById('loginBtn').addEventListener('click', async () => {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPass').value;
+    const statusEl = document.getElementById('loginStatus');
+    statusEl.textContent = 'Signing in...'; statusEl.className = 'status-msg';
+    const { error } = await supa.auth.signInWithPassword({ email, password });
+    if (error) { statusEl.textContent = error.message; statusEl.className = 'status-msg error'; }
+  });
+
+  document.getElementById('signOutBtn').addEventListener('click', async () => {
+    await supa.auth.signOut();
+  });
+
+  supa.auth.onAuthStateChange((event, session) => {
+    if (session) {
+      loginBox.hidden = true; dash.hidden = false;
+      whoami.textContent = 'signed in as ' + session.user.email;
+      bootDashboard();
+    } else {
+      loginBox.hidden = false; dash.hidden = true;
+    }
+  });
+
+  /* ---------------- TABS ---------------- */
+  document.querySelectorAll('nav.tabs button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('nav.tabs button').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  let booted = false;
+  function bootDashboard() {
+    if (booted) return;
+    booted = true;
+    loadTextFields();
+    loadQuestions();
+    loadGalleryAdmin();
+    loadResponses();
+  }
+
+  /* =========================================================
+     TEXT + LAYOUT
+     ========================================================= */
+  const TEXT_FIELDS = [
+    {key:'eyebrow', label:'Eyebrow (small line above the heading)', type:'text'},
+    {key:'heading', label:'Main heading', type:'text'},
+    {key:'intro_p1', label:'Intro paragraph 1', type:'textarea'},
+    {key:'intro_p2', label:'Intro paragraph 2', type:'textarea'},
+    {key:'name_label', label:'Name field label', type:'text'},
+    {key:'submit_label', label:'Submit button text', type:'text'},
+    {key:'submit_sub', label:'Text under the submit button', type:'text'},
+    {key:'done_heading', label:'Thank-you heading', type:'text'},
+    {key:'done_body', label:'Thank-you body text', type:'textarea'},
+    {key:'footer', label:'Footer line', type:'text'},
+    {key:'mosaic_note', label:'Line under the photo gallery', type:'text'},
+  ];
+  const LAYOUTS = [
+    {key:'grid', title:'Grid', desc:'Fixed box, photos cropped to fill it edge-to-edge. Compact, consistent, never grows.'},
+    {key:'flow', title:'Flow', desc:'Masonry columns, full uncropped photos at their own aspect ratio. Grows taller as you add more.'},
+    {key:'scatter', title:'Scatter', desc:'A loose, overlapping polaroid-style collage with a slight tilt. Playful, less tidy.'},
+  ];
+
+  let siteData = {};
+
+  function renderLayoutOpts() {
+    const wrap = document.getElementById('layoutOpts');
+    wrap.innerHTML = '';
+    LAYOUTS.forEach(l => {
+      const row = document.createElement('label');
+      row.className = 'layout-opt' + (siteData.gallery_layout === l.key || (!siteData.gallery_layout && l.key === 'grid') ? ' active' : '');
+      row.innerHTML = `<input type="radio" name="layout" value="${l.key}" ${ (siteData.gallery_layout||'grid')===l.key ? 'checked' : '' }>
+        <div><div class="t">${l.title}</div><div class="d">${l.desc}</div></div>`;
+      row.querySelector('input').addEventListener('change', () => {
+        siteData.gallery_layout = l.key;
+        document.querySelectorAll('.layout-opt').forEach(o => o.classList.remove('active'));
+        row.classList.add('active');
+      });
+      wrap.appendChild(row);
+    });
+  }
+
+  function renderTextFields() {
+    const wrap = document.getElementById('textFields');
+    wrap.innerHTML = '';
+    TEXT_FIELDS.forEach(f => {
+      const field = document.createElement('div');
+      field.className = 'field';
+      const label = document.createElement('label');
+      label.textContent = f.label;
+      const input = document.createElement(f.type === 'textarea' ? 'textarea' : 'input');
+      if (f.type !== 'textarea') input.type = 'text';
+      input.value = siteData[f.key] || '';
+      input.addEventListener('input', () => { siteData[f.key] = input.value; });
+      field.appendChild(label); field.appendChild(input);
+      wrap.appendChild(field);
+    });
+  }
+
+  async function loadTextFields() {
+    try {
+      const { data } = await supa.from('site_content').select('data').eq('id', 'main').maybeSingle();
+      siteData = (data && data.data) || {};
+    } catch (e) { siteData = {}; }
+    renderLayoutOpts();
+    renderTextFields();
+  }
+
+  document.getElementById('saveTextBtn').addEventListener('click', async () => {
+    const statusEl = document.getElementById('textStatus');
+    statusEl.textContent = 'Saving...'; statusEl.className = 'status-msg';
+    try {
+      const { error } = await supa.from('site_content').upsert({ id: 'main', data: siteData, updated_at: new Date().toISOString() });
+      if (error) throw error;
+      statusEl.textContent = 'Saved. Reload the live page to see it.'; statusEl.className = 'status-msg good';
+    } catch (e) {
+      statusEl.textContent = e.message || 'Could not save.'; statusEl.className = 'status-msg error';
+    }
+  });
+
+  /* =========================================================
+     QUESTIONS
+     ========================================================= */
+  let questionsCache = [];
+
+  async function loadQuestions() {
+    const { data, error } = await supa.from('questions').select('*').order('position', {ascending:true});
+    questionsCache = (!error && data) || [];
+    renderQuestions();
+  }
+
+  function renderQuestions() {
+    const wrap = document.getElementById('questionsList');
+    wrap.innerHTML = '';
+    questionsCache.forEach((q, i) => {
+      const row = document.createElement('div');
+      row.className = 'qrow' + (q.active ? '' : ' inactive');
+
+      const ta = document.createElement('textarea');
+      ta.value = q.prompt;
+      ta.addEventListener('input', () => { q._dirty = true; q.prompt = ta.value; });
+
+      const ctrls = document.createElement('div');
+      ctrls.className = 'qctrls';
+
+      const upBtn = document.createElement('button'); upBtn.className='btn small'; upBtn.textContent='↑';
+      upBtn.disabled = i === 0;
+      upBtn.addEventListener('click', () => moveQuestion(i, -1));
+
+      const downBtn = document.createElement('button'); downBtn.className='btn small'; downBtn.textContent='↓';
+      downBtn.disabled = i === questionsCache.length - 1;
+      downBtn.addEventListener('click', () => moveQuestion(i, 1));
+
+      const toggleBtn = document.createElement('button'); toggleBtn.className='btn small';
+      toggleBtn.textContent = q.active ? 'Retire' : 'Reactivate';
+      toggleBtn.addEventListener('click', () => toggleQuestion(q, row));
+
+      const saveBtn = document.createElement('button'); saveBtn.className='btn small primary'; saveBtn.textContent='Save';
+      saveBtn.addEventListener('click', () => saveQuestionText(q, saveBtn));
+
+      ctrls.appendChild(upBtn); ctrls.appendChild(downBtn); ctrls.appendChild(toggleBtn); ctrls.appendChild(saveBtn);
+      row.appendChild(ta); row.appendChild(ctrls);
+      wrap.appendChild(row);
+    });
+  }
+
+  async function saveQuestionText(q, btn) {
+    btn.disabled = true;
+    const { error } = await supa.from('questions').update({ prompt: q.prompt }).eq('id', q.id);
+    btn.disabled = false;
+    const statusEl = document.getElementById('questionsStatus');
+    statusEl.textContent = error ? (error.message) : 'Saved — only future answers use the new wording.';
+    statusEl.className = 'status-msg ' + (error ? 'error' : 'good');
+  }
+
+  async function toggleQuestion(q, row) {
+    const { error } = await supa.from('questions').update({ active: !q.active }).eq('id', q.id);
+    if (!error) { q.active = !q.active; renderQuestions(); }
+  }
+
+  async function moveQuestion(index, dir) {
+    const other = questionsCache[index + dir];
+    const self = questionsCache[index];
+    if (!other) return;
+    const a = self.position, b = other.position;
+    await supa.from('questions').update({ position: b }).eq('id', self.id);
+    await supa.from('questions').update({ position: a }).eq('id', other.id);
+    await loadQuestions();
+  }
+
+  document.getElementById('addQuestionBtn').addEventListener('click', async () => {
+    const maxPos = questionsCache.reduce((m,q)=>Math.max(m,q.position), 0);
+    const { error } = await supa.from('questions').insert({ prompt: 'New question', position: maxPos + 1, active: true });
+    const statusEl = document.getElementById('questionsStatus');
+    if (error) { statusEl.textContent = error.message; statusEl.className = 'status-msg error'; return; }
+    await loadQuestions();
+  });
+
+  /* =========================================================
+     GALLERY — list, reorder, delete, upload with compression
+     ========================================================= */
+  let galleryCache = [];
+
+  async function loadGalleryAdmin() {
+    const { data, error } = await supa.from('gallery_items').select('*').order('position', {ascending:true});
+    galleryCache = (!error && data) || [];
+    document.getElementById('seedCard').hidden = galleryCache.length > 0;
+    renderGalleryAdmin();
+  }
+
+  function mediaUrl(row) {
+    return row.storage_path.startsWith('http')
+      ? row.storage_path
+      : `${SUPABASE_URL}/storage/v1/object/public/gallery/${row.storage_path}`;
+  }
+
+  function renderGalleryAdmin() {
+    document.getElementById('galCount').textContent = galleryCache.length;
+    const grid = document.getElementById('gitemsGrid');
+    grid.innerHTML = '';
+    galleryCache.forEach((row, i) => {
+      const el = document.createElement('div');
+      el.className = 'gitem';
+      const media = document.createElement(row.kind === 'video' ? 'video' : 'img');
+      media.className = 'thumb';
+      media.src = mediaUrl(row);
+      if (row.kind === 'video') { media.muted = true; media.controls = true; }
+      el.appendChild(media);
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const capInput = document.createElement('input');
+      capInput.type = 'text'; capInput.placeholder = 'caption';
+      capInput.value = row.caption || '';
+      capInput.addEventListener('change', async () => {
+        await supa.from('gallery_items').update({ caption: capInput.value }).eq('id', row.id);
+      });
+      meta.appendChild(capInput);
+
+      const ctrls = document.createElement('div');
+      ctrls.className = 'row wrap';
+      const upBtn = document.createElement('button'); upBtn.className='btn small'; upBtn.textContent='↑'; upBtn.disabled = i===0;
+      upBtn.addEventListener('click', () => moveGalleryItem(i, -1));
+      const downBtn = document.createElement('button'); downBtn.className='btn small'; downBtn.textContent='↓'; downBtn.disabled = i===galleryCache.length-1;
+      downBtn.addEventListener('click', () => moveGalleryItem(i, 1));
+      const delBtn = document.createElement('button'); delBtn.className='btn small danger'; delBtn.textContent='Delete';
+      delBtn.addEventListener('click', () => deleteGalleryItem(row));
+      ctrls.appendChild(upBtn); ctrls.appendChild(downBtn); ctrls.appendChild(delBtn);
+      meta.appendChild(ctrls);
+
+      el.appendChild(meta);
+      grid.appendChild(el);
+    });
+  }
+
+  async function moveGalleryItem(index, dir) {
+    const other = galleryCache[index + dir];
+    const self = galleryCache[index];
+    if (!other) return;
+    const a = self.position, b = other.position;
+    await supa.from('gallery_items').update({ position: b }).eq('id', self.id);
+    await supa.from('gallery_items').update({ position: a }).eq('id', other.id);
+    await loadGalleryAdmin();
+  }
+
+  async function deleteGalleryItem(row) {
+    await supa.from('gallery_items').delete().eq('id', row.id);
+    if (!row.storage_path.startsWith('http')) {
+      await supa.storage.from('gallery').remove([row.storage_path]);
+    }
+    await loadGalleryAdmin();
+  }
+
+  document.getElementById('seedBtn').addEventListener('click', async () => {
+    const base = location.href.replace(/admin\.html.*$/, '');
+    const starters = [
+      ['top-of-the-rock.jpg','image','the view that convinced me this was real'],
+      ['international-house.jpg','image','155 — the building that became home'],
+      ['world-cup-night.jpg','image','a hundred countries, one screen, one goal that mattered'],
+      ['aerial-silks.jpg','image','aerial silks. several bruises. zero regrets.'],
+      ['bumblebee.jpg','image','became a bumblebee at the botanical garden, no notes'],
+      ['dance-class.jpg','image','the class that rearranged my whole week'],
+      ['times-square.jpg','image','a little overwhelmed, mostly in love with the chaos'],
+      ['piano-bar.jpg','image','the night I played piano in a bar and nobody stopped me'],
+      ['acro-lift.jpg','image','the day someone finally trusted me to hold them up'],
+    ];
+    const rows = starters.map((s, i) => ({
+      kind: s[1], storage_path: base + 'images/' + s[0], caption: s[2], position: i,
+    }));
+    await supa.from('gallery_items').insert(rows);
+    await loadGalleryAdmin();
+  });
+
+  /* ---- upload with client-side compression ---- */
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  dropzone.addEventListener('click', () => fileInput.click());
+
+  function compressImage(file, maxDim, quality) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
+        else if (height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('compression failed')), 'image/jpeg', quality);
+        URL.revokeObjectURL(img.src);
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  function pickVideoMime() {
+    const candidates = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+    for (const c of candidates) if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) return c;
+    return '';
+  }
+
+  // Re-encodes a video at a capped resolution/bitrate by playing it through
+  // a canvas and re-recording — real compression, no server or big wasm lib
+  // needed, at the cost of taking roughly as long as the clip itself.
+  function compressVideo(file, { maxDim = 1280, videoBitsPerSecond = 2000000, audioBitsPerSecond = 128000, onProgress } = {}) {
+    return new Promise((resolve, reject) => {
+      const srcVideo = document.createElement('video');
+      srcVideo.src = URL.createObjectURL(file);
+      srcVideo.muted = true; srcVideo.playsInline = true;
+
+      const hasCapture = typeof srcVideo.captureStream === 'function' || typeof srcVideo.mozCaptureStream === 'function';
+      if (!hasCapture || !window.MediaRecorder) { resolve(file); return; } // unsupported: upload original
+
+      srcVideo.onloadedmetadata = () => {
+        let w = srcVideo.videoWidth, h = srcVideo.videoHeight;
+        if (Math.max(w, h) > maxDim) {
+          if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        const canvasStream = canvas.captureStream(30);
+        const srcStream = srcVideo.captureStream ? srcVideo.captureStream() : srcVideo.mozCaptureStream();
+        const combined = new MediaStream([...canvasStream.getVideoTracks(), ...srcStream.getAudioTracks()]);
+
+        const mimeType = pickVideoMime();
+        let recorder;
+        try {
+          recorder = new MediaRecorder(combined, { mimeType: mimeType || undefined, videoBitsPerSecond, audioBitsPerSecond });
+        } catch (e) { resolve(file); return; }
+
+        const chunks = [];
+        recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+        recorder.onstop = () => {
+          URL.revokeObjectURL(srcVideo.src);
+          resolve(new Blob(chunks, { type: recorder.mimeType || 'video/webm' }));
+        };
+
+        let raf;
+        function draw() {
+          if (srcVideo.paused || srcVideo.ended) return;
+          ctx.drawImage(srcVideo, 0, 0, w, h);
+          if (onProgress && srcVideo.duration) onProgress(srcVideo.currentTime / srcVideo.duration);
+          raf = requestAnimationFrame(draw);
+        }
+        srcVideo.onended = () => { cancelAnimationFrame(raf); if (recorder.state === 'recording') recorder.stop(); };
+        recorder.start();
+        srcVideo.play().then(draw).catch(() => { resolve(file); });
+      };
+      srcVideo.onerror = () => resolve(file); // fall back to original rather than fail the upload
+    });
+  }
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const caption = document.getElementById('newCaption').value.trim();
+    const progressEl = document.getElementById('uploadProgress');
+    const statusEl = document.getElementById('galleryStatus');
+    statusEl.textContent = ''; statusEl.className = 'status-msg';
+    const isVideo = file.type.startsWith('video/');
+
+    try {
+      let blob, ext;
+      if (isVideo) {
+        progressEl.textContent = file.size > 12*1024*1024 ? 'Compressing video... 0%' : 'Preparing...';
+        blob = file.size > 12*1024*1024
+          ? await compressVideo(file, { onProgress: p => { progressEl.textContent = 'Compressing video... ' + Math.round(p*100) + '%'; } })
+          : file;
+        ext = (blob === file) ? (file.name.split('.').pop() || 'mp4') : 'webm';
+      } else {
+        progressEl.textContent = 'Compressing image...';
+        blob = await compressImage(file, 1600, 0.8);
+        ext = 'jpg';
+      }
+
+      progressEl.textContent = 'Uploading...';
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+      const { error: upErr } = await supa.storage.from('gallery').upload(path, blob, { contentType: blob.type || undefined });
+      if (upErr) throw upErr;
+
+      const maxPos = galleryCache.reduce((m,q)=>Math.max(m,q.position), -1);
+      const { error: insErr } = await supa.from('gallery_items').insert({
+        kind: isVideo ? 'video' : 'image', storage_path: path, caption: caption || null, position: maxPos + 1,
+      });
+      if (insErr) throw insErr;
+
+      progressEl.textContent = '';
+      statusEl.textContent = 'Added.'; statusEl.className = 'status-msg good';
+      document.getElementById('newCaption').value = '';
+      fileInput.value = '';
+      await loadGalleryAdmin();
+    } catch (e) {
+      progressEl.textContent = '';
+      statusEl.textContent = e.message || 'Upload failed.'; statusEl.className = 'status-msg error';
+    }
+  });
+
+  /* =========================================================
+     RESPONSES — view, download, approve for sharing
+     ========================================================= */
+  async function loadResponses() {
+    const listEl = document.getElementById('responsesList');
+    const countEl = document.getElementById('respCount');
+    listEl.innerHTML = 'Loading...';
+    try {
+      const { data: subs, error } = await supa.from('submissions').select('*').order('created_at', {ascending:false});
+      if (error) throw error;
+      countEl.textContent = subs.length + (subs.length === 1 ? ' response' : ' responses');
+      if (!subs.length) { listEl.innerHTML = '<p class="muted">No responses yet.</p>'; return; }
+
+      const { data: answers, error: ansErr } = await supa.from('answers').select('*')
+        .in('submission_id', subs.map(s=>s.id)).order('position', {ascending:true});
+      if (ansErr) throw ansErr;
+
+      listEl.innerHTML = '';
+      for (const sub of subs) {
+        const card = document.createElement('div');
+        card.className = 'sub-card';
+
+        const head = document.createElement('div');
+        head.className = 'shead';
+        const name = document.createElement('span'); name.className = 'sname'; name.textContent = sub.friend_name;
+        const time = document.createElement('span'); time.className = 'stime'; time.textContent = new Date(sub.created_at).toLocaleString();
+        head.appendChild(name); head.appendChild(time);
+        if (sub.ok_to_share) {
+          const badge = document.createElement('span'); badge.className = 'badge share'; badge.textContent = 'okay to share';
+          head.appendChild(badge);
+        }
+        card.appendChild(head);
+
+        for (const a of answers.filter(x => x.submission_id === sub.id)) {
+          const block = document.createElement('div');
+          block.className = 'ans-block';
+          const q = document.createElement('div'); q.className = 'q'; q.textContent = a.question_prompt;
+          block.appendChild(q);
+          if (a.kind === 'text') {
+            const p = document.createElement('p'); p.textContent = a.text_value; block.appendChild(p);
+          } else if (a.file_path) {
+            const media = document.createElement(a.kind === 'video' ? 'video' : 'audio');
+            media.controls = true;
+            const { data: signed } = await supa.storage.from('responses').createSignedUrl(a.file_path, 3600);
+            if (signed) media.src = signed.signedUrl;
+            block.appendChild(media);
+
+            const dl = document.createElement('button');
+            dl.className = 'btn small'; dl.style.marginTop = '.5rem'; dl.textContent = 'Download';
+            dl.addEventListener('click', () => downloadResponseFile(a.file_path));
+            block.appendChild(dl);
+          }
+          card.appendChild(block);
+        }
+
+        if (sub.ok_to_share) {
+          const toggleWrap = document.createElement('label');
+          toggleWrap.className = 'share-toggle';
+          const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = sub.shared_approved;
+          cb.addEventListener('change', async () => {
+            await supa.from('submissions').update({ shared_approved: cb.checked }).eq('id', sub.id);
+          });
+          toggleWrap.appendChild(cb);
+          toggleWrap.appendChild(document.createTextNode('Show in the public "Shared answers" section'));
+          card.appendChild(toggleWrap);
+        }
+
+        listEl.appendChild(card);
+      }
+    } catch (e) {
+      listEl.innerHTML = '<p class="status-msg error">' + (e.message || 'Could not load responses.') + '</p>';
+    }
+  }
+
+  async function downloadResponseFile(path) {
+    try {
+      const { data, error } = await supa.storage.from('responses').download(path);
+      if (error) throw error;
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url; a.download = path.split('/').pop();
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (e) { alert('Could not download: ' + (e.message || e)); }
+  }
+
+  document.getElementById('refreshRespBtn').addEventListener('click', loadResponses);
+})();
+</script>
+</body>
+</html>

@@ -54,14 +54,19 @@
   .reveal.in{opacity:1; transform:translateY(0);}
 
   /* ---------- Photo mosaic ----------
-     A fixed-size box (same footprint the old slideshow used) filled
-     edge-to-edge by a grid. Each cell is cropped (object-fit: cover)
-     to its slot, so the box never grows -- add more photos and the
-     grid adds more, smaller cells to the SAME height instead. */
+     Three selectable layouts (set from admin.html, stored in
+     site_content.data.gallery_layout):
+       .layout-grid    fixed-size box, cells cropped to fill it
+       .layout-flow    masonry columns, full uncropped photos
+       .layout-scatter loose scattered collage, positioned by JS
+     Video tiles, in every layout: muted preview frame at rest,
+     plays (still muted) on hover, with a tap-to-unmute button. */
   .mosaic-wrap{
     padding:max(14px, env(safe-area-inset-top,0px)) max(14px, env(safe-area-inset-left,0px)) 0;
   }
-  .mosaic{
+  .mosaic{ position:relative; }
+
+  .mosaic.layout-grid{
     display:grid;
     grid-template-columns:repeat(3, 1fr);
     grid-auto-rows:1fr;
@@ -70,15 +75,36 @@
     min-height:380px;
     max-height:620px;
   }
-  @media (min-width:640px){ .mosaic{ grid-template-columns:repeat(4, 1fr); } }
-  @media (min-width:960px){ .mosaic{ grid-template-columns:repeat(5, 1fr); } }
-  /* when the collection grows, more columns keep the box the same size */
-  .mosaic.mosaic-l{ grid-template-columns:repeat(4, 1fr); }
-  @media (min-width:640px){ .mosaic.mosaic-l{ grid-template-columns:repeat(5, 1fr); } }
-  @media (min-width:960px){ .mosaic.mosaic-l{ grid-template-columns:repeat(6, 1fr); } }
-  .mosaic.mosaic-xl{ grid-template-columns:repeat(5, 1fr); }
-  @media (min-width:640px){ .mosaic.mosaic-xl{ grid-template-columns:repeat(6, 1fr); } }
-  @media (min-width:960px){ .mosaic.mosaic-xl{ grid-template-columns:repeat(7, 1fr); } }
+  @media (min-width:640px){ .mosaic.layout-grid{ grid-template-columns:repeat(4, 1fr); } }
+  @media (min-width:960px){ .mosaic.layout-grid{ grid-template-columns:repeat(5, 1fr); } }
+  .mosaic.layout-grid.mosaic-l{ grid-template-columns:repeat(4, 1fr); }
+  @media (min-width:640px){ .mosaic.layout-grid.mosaic-l{ grid-template-columns:repeat(5, 1fr); } }
+  @media (min-width:960px){ .mosaic.layout-grid.mosaic-l{ grid-template-columns:repeat(6, 1fr); } }
+  .mosaic.layout-grid.mosaic-xl{ grid-template-columns:repeat(5, 1fr); }
+  @media (min-width:640px){ .mosaic.layout-grid.mosaic-xl{ grid-template-columns:repeat(6, 1fr); } }
+  @media (min-width:960px){ .mosaic.layout-grid.mosaic-xl{ grid-template-columns:repeat(7, 1fr); } }
+  .mosaic.layout-grid .mosaic-item img,
+  .mosaic.layout-grid .mosaic-item video{ object-fit:cover; }
+
+  .mosaic.layout-flow{ column-count:2; column-gap:8px; }
+  @media (min-width:640px){ .mosaic.layout-flow{ column-count:3; } }
+  @media (min-width:960px){ .mosaic.layout-flow{ column-count:4; } }
+  .mosaic.layout-flow.mosaic-l{ column-count:3; }
+  @media (min-width:640px){ .mosaic.layout-flow.mosaic-l{ column-count:4; } }
+  @media (min-width:960px){ .mosaic.layout-flow.mosaic-l{ column-count:5; } }
+  .mosaic.layout-flow .mosaic-item{ display:inline-block; width:100%; break-inside:avoid; -webkit-column-break-inside:avoid; margin:0 0 8px; }
+  .mosaic.layout-flow .mosaic-item img,
+  .mosaic.layout-flow .mosaic-item video{ height:auto; object-fit:initial; }
+
+  .mosaic.layout-scatter{ min-height:420px; }
+  .mosaic.layout-scatter .mosaic-item{
+    position:absolute;
+    border:5px solid #fff0de;
+    box-shadow:0 10px 26px -8px rgba(0,0,0,.6);
+    transition:transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s ease;
+  }
+  .mosaic.layout-scatter .mosaic-item img,
+  .mosaic.layout-scatter .mosaic-item video{ aspect-ratio:1/1.08; object-fit:cover; }
 
   .mosaic-item{
     position:relative;
@@ -89,7 +115,8 @@
     transition:transform .45s cubic-bezier(.2,.8,.2,1), box-shadow .45s ease;
     will-change:transform;
   }
-  .mosaic-item:hover, .mosaic-item:focus-visible, .mosaic-item:active{
+  .mosaic.layout-grid .mosaic-item:hover, .mosaic.layout-grid .mosaic-item:focus-visible, .mosaic.layout-grid .mosaic-item:active,
+  .mosaic.layout-flow .mosaic-item:hover, .mosaic.layout-flow .mosaic-item:focus-visible, .mosaic.layout-flow .mosaic-item:active{
     transform:scale(1.1);
     z-index:5;
     box-shadow:0 16px 38px -10px rgba(0,0,0,.6);
@@ -98,7 +125,6 @@
     display:block;
     width:100%;
     height:100%;
-    object-fit:cover;
     object-position:center;
     -webkit-user-drag:none;
   }
@@ -122,6 +148,16 @@
     opacity:1;
     transform:translateY(0);
   }
+  .mosaic-mute{
+    position:absolute; top:6px; right:6px; z-index:3;
+    width:26px; height:26px; border-radius:50%;
+    background:rgba(10,8,12,.72); border:none; color:#f4e9d2;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; opacity:.85;
+    transition:opacity .2s, transform .2s;
+  }
+  .mosaic-mute:hover{ opacity:1; transform:scale(1.1); }
+  .mosaic-mute svg{ width:13px; height:13px; stroke:currentColor; fill:none; stroke-width:2; }
   .mosaic-note{
     text-align:center;
     font-size:.72rem;
@@ -301,6 +337,48 @@
   .upload-fallback label:hover{color:var(--muted);}
   .upload-fallback input{display:none;}
 
+  /* ---------- Share opt-in ---------- */
+  .share-opt{
+    display:flex; align-items:flex-start; gap:.6rem;
+    margin:1.4rem 0 .4rem;
+    font-size:.82rem;
+    color:var(--muted);
+    line-height:1.5;
+    cursor:pointer;
+  }
+  .share-opt input{
+    margin-top:.2rem;
+    width:17px; height:17px;
+    accent-color:var(--accent);
+    flex-shrink:0;
+  }
+
+  /* ---------- Shared answers ---------- */
+  .shared-wrap{padding-top:1.4rem;}
+  .shared-heading{font-size:1.5rem; text-align:center; margin-bottom:.4rem;}
+  .shared-sub{text-align:center; font-size:.82rem; color:var(--muted-dim); font-style:italic; margin:0 0 1.4rem;}
+  .shared-card{
+    background:var(--card);
+    border:1px solid var(--line-soft);
+    border-radius:16px;
+    padding:1.3rem 1.4rem;
+    margin:0 0 1rem;
+  }
+  .shared-card .who{
+    font-family:'Fraunces',serif; font-weight:500; font-size:1.05rem; color:var(--accent);
+    margin-bottom:.8rem;
+  }
+  .shared-answer{margin-bottom:1rem;}
+  .shared-answer:last-child{margin-bottom:0;}
+  .shared-answer .sq{
+    font-size:.68rem; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--muted-dim); font-weight:600; margin-bottom:.4rem;
+  }
+  .shared-answer p{
+    margin:0; color:var(--fg); font-family:'Fraunces',serif; font-size:.98rem; line-height:1.55;
+  }
+  .shared-answer video, .shared-answer audio{width:100%; border-radius:10px; display:block; background:#000;}
+
   /* ---------- Submit ---------- */
   .submit-row{padding-top:.6rem; text-align:center;}
   .submit-row .btn.primary{width:100%; justify-content:center; padding:1rem; font-size:.98rem; letter-spacing:.01em;}
@@ -335,21 +413,21 @@
 <div class="mosaic-wrap">
   <div class="mosaic" id="mosaic" aria-label="Photos from New York"></div>
 </div>
-<p class="mosaic-note">six months of this city — hover one for a closer look</p>
+<p class="mosaic-note" id="txt-mosaicnote">six months of this city — hover one for a closer look</p>
 
 <div class="wrap">
 
   <div class="divider reveal"><span class="line"></span><span class="mark">✦</span><span class="line"></span></div>
 
   <section class="intro reveal">
-    <div class="eyebrow">Before I go</div>
-    <h1>I'm leaving New York on Saturday.</h1>
-    <p class="dropcap">Six months isn't long, but it was long enough that most of the good parts had you in them. Before I pack this city away, I wanted to ask you something — however you'd rather answer it. Say it to a camera, record a voice note, or just write it down.</p>
-    <p>Two questions. No rush, and no wrong way to answer.</p>
+    <div class="eyebrow" id="txt-eyebrow">Before I go</div>
+    <h1 id="txt-heading">I'm leaving New York on Saturday.</h1>
+    <p class="dropcap" id="txt-intro1">Six months isn't long, but it was long enough that most of the good parts had you in them. Before I pack this city away, I wanted to ask you something — however you'd rather answer it. Say it to a camera, record a voice note, or just write it down.</p>
+    <p id="txt-intro2">Two questions. No rush, and no wrong way to answer.</p>
   </section>
 
   <section class="namefield reveal">
-    <label for="friendName">Sign your name before you start</label>
+    <label for="friendName" id="txt-namelabel">Sign your name before you start</label>
     <div class="signature-input">
       <input type="text" id="friendName" placeholder="your name" autocomplete="name">
     </div>
@@ -357,40 +435,36 @@
 
   <form id="responseForm">
 
-    <div class="qcard reveal" data-qid="q1">
-      <div class="qcard-head">
-        <span class="qnum">Question one</span>
-        <span class="qcheck">✓ answered</span>
-      </div>
-      <h2>What's a memory or shared experience you'll remember me by?</h2>
-      <div class="modes" role="group" aria-label="How do you want to answer"></div>
-      <div class="mode-panel"></div>
+    <div id="questionsContainer">
+      <!-- question cards are built from the questions table at load time; see section 1b -->
     </div>
 
-    <div class="qcard reveal" data-qid="q2">
-      <div class="qcard-head">
-        <span class="qnum">Question two · shamelessly fishing for compliments</span>
-        <span class="qcheck">✓ answered</span>
-      </div>
-      <h2>What are some of your favorite things about me?</h2>
-      <div class="modes" role="group" aria-label="How do you want to answer"></div>
-      <div class="mode-panel"></div>
-    </div>
+    <label class="share-opt">
+      <input type="checkbox" id="okToShare">
+      <span>It's okay to share my answer with others reading this page (my call either way — he still decides what actually gets posted)</span>
+    </label>
 
     <div class="submit-row reveal">
       <button type="submit" class="btn primary" id="submitBtn">Send it my way</button>
-      <p class="submit-sub">it goes straight to me, nowhere else</p>
+      <p class="submit-sub" id="txt-submitsub">it goes straight to me, nowhere else</p>
       <p class="status" id="formStatus"></p>
     </div>
   </form>
 
   <div class="done" id="doneState" hidden>
     <div class="mark">✦</div>
-    <h2>Got it. Thank you.</h2>
-    <p>This means more than you know. See you before I'm fully gone — and definitely before I'm back.</p>
+    <h2 id="txt-doneheading">Got it. Thank you.</h2>
+    <p id="txt-donebody">This means more than you know. See you before I'm fully gone — and definitely before I'm back.</p>
   </div>
 
-  <footer>made with whatever time was left before the flight</footer>
+  <section class="shared-wrap reveal" id="sharedSection" hidden>
+    <div class="divider"><span class="line"></span><span class="mark">✦</span><span class="line"></span></div>
+    <h2 class="shared-heading">Shared answers</h2>
+    <p class="shared-sub">a few people said it was okay to share this</p>
+    <div class="shared-list" id="sharedList"></div>
+  </section>
+
+  <footer id="txt-footer">made with whatever time was left before the flight</footer>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -400,10 +474,9 @@
 
   /* =========================================================
      1. PHOTO MOSAIC
-        To add more later: drop a .jpg into images/, then add one
-        line below — {src:'images/filename.jpg', caption:'...'}.
-        The grid re-flows itself; nothing else needs to change.
-        A short clip works too: {src:'images/clip.mp4', type:'video', caption:'...'}.
+        This array is only the OFFLINE FALLBACK, shown if Supabase
+        can't be reached. The real source of truth is the
+        gallery_items table, edited from admin.html — see section 3b.
      ========================================================= */
   const FRAMES = [
     {src:'images/top-of-the-rock.jpg', caption:'the view that convinced me this was real'},
@@ -418,47 +491,120 @@
   ];
 
   const mosaicEl = document.getElementById('mosaic');
-  FRAMES.forEach(f => {
-    const item = document.createElement('div');
-    item.className = 'mosaic-item';
-    item.tabIndex = 0;
-    let media;
-    if (f.type === 'video') {
-      media = document.createElement('video');
-      media.src = f.src; media.autoplay = true; media.muted = true; media.loop = true; media.playsInline = true;
-    } else {
-      media = document.createElement('img');
-      media.src = f.src; media.alt = f.caption || ''; media.loading = 'lazy'; media.decoding = 'async';
+  const mutedIcon = '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 9l5 5M21 9l-5 5" stroke-linecap="round"/></svg>';
+  const loudIcon = '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 8a5 5 0 010 8M19 5a9 9 0 010 14" stroke-linecap="round"/></svg>';
+
+  function layoutScatterPositions() {
+    const items = Array.from(mosaicEl.querySelectorAll('.mosaic-item'));
+    if (!items.length) { mosaicEl.style.height = ''; return; }
+    const containerWidth = mosaicEl.clientWidth || 320;
+    const tileW = containerWidth < 480 ? 104 : (containerWidth < 800 ? 128 : 150);
+    const cols = Math.max(2, Math.floor(containerWidth / (tileW * 0.8)));
+    let maxBottom = 0;
+    items.forEach((item, i) => {
+      item.style.width = tileW + 'px';
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const r1 = Math.abs(Math.sin(i * 12.9898)) % 1;
+      const r2 = Math.abs(Math.sin(i * 78.233 + 1)) % 1;
+      const r3 = Math.abs(Math.sin(i * 37.719 + 2)) % 1;
+      const left = col * (tileW * 0.82) + (r1 - 0.5) * (tileW * 0.4);
+      const top = row * (tileW * 1.0) + (r2 - 0.5) * 34;
+      const rot = (r3 - 0.5) * 14; // ~ -7..7 deg
+      item.style.left = Math.max(0, left) + 'px';
+      item.style.top = Math.max(0, top) + 'px';
+      item.dataset.baseRot = rot.toFixed(2);
+      item.style.transform = `rotate(${rot.toFixed(2)}deg)`;
+      maxBottom = Math.max(maxBottom, top + tileW * 1.15);
+    });
+    mosaicEl.style.height = Math.ceil(maxBottom + 20) + 'px';
+  }
+
+  function renderMosaic(frames, layout) {
+    layout = layout || 'grid';
+    mosaicEl.innerHTML = '';
+    mosaicEl.className = 'mosaic layout-' + layout;
+    mosaicEl.style.height = '';
+    frames.forEach(f => {
+      const item = document.createElement('div');
+      item.className = 'mosaic-item';
+      item.tabIndex = 0;
+      let media;
+      if (f.type === 'video') {
+        media = document.createElement('video');
+        media.src = f.src; media.muted = true; media.loop = true; media.playsInline = true; media.preload = 'metadata';
+        media.addEventListener('loadedmetadata', () => {
+          try { media.currentTime = Math.min(0.15, (media.duration || 1) / 2); } catch (e) {}
+        });
+        item.appendChild(media);
+
+        const muteBtn = document.createElement('button');
+        muteBtn.type = 'button';
+        muteBtn.className = 'mosaic-mute';
+        muteBtn.setAttribute('aria-label', 'Toggle sound');
+        muteBtn.innerHTML = mutedIcon;
+        muteBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          media.muted = !media.muted;
+          muteBtn.innerHTML = media.muted ? mutedIcon : loudIcon;
+        });
+        item.appendChild(muteBtn);
+
+        const play = () => { media.play().catch(() => {}); };
+        const pause = () => { media.pause(); };
+        item.addEventListener('mouseenter', play);
+        item.addEventListener('mouseleave', pause);
+        item.addEventListener('touchstart', () => { media.paused ? play() : pause(); }, {passive: true});
+      } else {
+        media = document.createElement('img');
+        media.src = f.src; media.alt = f.caption || ''; media.loading = 'lazy'; media.decoding = 'async';
+        item.appendChild(media);
+      }
+      if (f.caption) {
+        const cap = document.createElement('div');
+        cap.className = 'mosaic-cap';
+        cap.textContent = f.caption;
+        item.appendChild(cap);
+      }
+      if (layout === 'scatter') {
+        item.addEventListener('mouseenter', () => { item.style.transform = 'rotate(0deg) scale(1.2)'; item.style.zIndex = '5'; });
+        item.addEventListener('mouseleave', () => { item.style.transform = `rotate(${item.dataset.baseRot || 0}deg)`; item.style.zIndex = ''; });
+      }
+      mosaicEl.appendChild(item);
+    });
+    if (layout === 'grid' || layout === 'flow') {
+      if (frames.length > 16) mosaicEl.classList.add('mosaic-xl');
+      else if (frames.length > 9) mosaicEl.classList.add('mosaic-l');
     }
-    item.appendChild(media);
-    if (f.caption) {
-      const cap = document.createElement('div');
-      cap.className = 'mosaic-cap';
-      cap.textContent = f.caption;
-      item.appendChild(cap);
-    }
-    mosaicEl.appendChild(item);
-  });
-  if (FRAMES.length > 16) mosaicEl.classList.add('mosaic-xl');
-  else if (FRAMES.length > 9) mosaicEl.classList.add('mosaic-l');
+    if (layout === 'scatter') requestAnimationFrame(layoutScatterPositions);
+  }
+
+  let galleryLayout = 'grid';
+  let lastFrames = FRAMES;
+  function rerenderMosaic() { renderMosaic(lastFrames, galleryLayout); }
+  rerenderMosaic();
 
   /* =========================================================
      2. SCROLL REVEAL
+        registerReveal() is also used on question cards that get
+        built dynamically after the page has already loaded.
      ========================================================= */
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reduceMotion) {
-    document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
-  } else if ('IntersectionObserver' in window) {
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach(entry => { if (entry.isIntersecting) { entry.target.classList.add('in'); io.unobserve(entry.target); } });
+  let revealIO = null;
+  if (!reduceMotion && 'IntersectionObserver' in window) {
+    revealIO = new IntersectionObserver((entries) => {
+      entries.forEach(entry => { if (entry.isIntersecting) { entry.target.classList.add('in'); revealIO.unobserve(entry.target); } });
     }, {threshold: 0.15, rootMargin: '0px 0px -40px 0px'});
-    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
-  } else {
-    document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
   }
+  function registerReveal(el) {
+    el.classList.add('reveal');
+    if (revealIO) revealIO.observe(el);
+    else el.classList.add('in');
+  }
+  document.querySelectorAll('.reveal').forEach(registerReveal);
 
   /* =========================================================
-     3. SUPABASE — fill these in once the project exists.
+     3. SUPABASE
      ========================================================= */
   const SUPABASE_URL = 'https://keyogsilqjdnivwzjmlv.supabase.co';
   const SUPABASE_ANON_KEY = 'sb_publishable_qoVauUWpUaD0NKa999s-pQ_KsULvU8M';
@@ -471,7 +617,16 @@
 
   /* =========================================================
      4. QUESTION RESPONSE WIDGETS (text / video / audio)
+        Questions are DATA now, not fixed HTML — buildQuestionsUI()
+        renders #questionsContainer from whatever list it's given.
+        FALLBACK_QUESTIONS renders immediately so the page is never
+        blank; loadQuestions() (section 6) replaces it with whatever
+        is live in the questions table, if reachable.
      ========================================================= */
+  const FALLBACK_QUESTIONS = [
+    {id: null, prompt: "What's a memory or shared experience you'll remember me by?"},
+    {id: null, prompt: "What are some of your favorite things about me?"},
+  ];
   const MAX_SECONDS = 90;
 
   function pickMime(kind) {
@@ -493,7 +648,10 @@
 
   const canRecord = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
 
-  const state = {}; // qid -> { mode, text, blob, mimeType, ext }
+  let state = {}; // qid -> { mode, text, blob, mimeType, ext }
+  let currentQuestions = [];
+
+  function qidFor(q, idx) { return q.id ? ('q_' + q.id) : ('qi_' + idx); }
 
   function isAnswered(qid) {
     const s = state[qid];
@@ -503,7 +661,51 @@
   }
   function refreshAnswered(qid) {
     const card = document.querySelector(`.qcard[data-qid="${qid}"]`);
-    card.classList.toggle('answered', isAnswered(qid));
+    if (card) card.classList.toggle('answered', isAnswered(qid));
+  }
+
+  function buildQuestionsUI(questions) {
+    currentQuestions = questions;
+    state = {};
+    const container = document.getElementById('questionsContainer');
+    container.innerHTML = '';
+    questions.forEach((q, idx) => {
+      const qid = qidFor(q, idx);
+      const card = document.createElement('div');
+      card.className = 'qcard';
+      card.dataset.qid = qid;
+
+      const head = document.createElement('div');
+      head.className = 'qcard-head';
+      const num = document.createElement('span');
+      num.className = 'qnum';
+      num.textContent = 'Question ' + (idx + 1);
+      const check = document.createElement('span');
+      check.className = 'qcheck';
+      check.textContent = '✓ answered';
+      head.appendChild(num);
+      head.appendChild(check);
+
+      const h2 = document.createElement('h2');
+      h2.textContent = q.prompt;
+
+      const modesEl = document.createElement('div');
+      modesEl.className = 'modes';
+      modesEl.setAttribute('role', 'group');
+      modesEl.setAttribute('aria-label', 'How do you want to answer');
+
+      const panelEl = document.createElement('div');
+      panelEl.className = 'mode-panel';
+
+      card.appendChild(head);
+      card.appendChild(h2);
+      card.appendChild(modesEl);
+      card.appendChild(panelEl);
+      container.appendChild(card);
+
+      registerReveal(card);
+      buildQuestion(qid);
+    });
   }
 
   function buildQuestion(qid) {
@@ -612,9 +814,14 @@
       }
 
       const mimeType = pickMime(kind);
+      const recOpts = {};
+      if (mimeType) recOpts.mimeType = mimeType;
+      // cap bitrate so a 90s clip stays well under ~20MB instead of ballooning on newer phones
+      if (kind === 'video') { recOpts.videoBitsPerSecond = 1500000; recOpts.audioBitsPerSecond = 96000; }
+      else { recOpts.audioBitsPerSecond = 96000; }
       chunks = [];
       try {
-        recorder = mimeType ? new MediaRecorder(mediaStream, {mimeType}) : new MediaRecorder(mediaStream);
+        recorder = new MediaRecorder(mediaStream, recOpts);
       } catch (e) {
         recorder = new MediaRecorder(mediaStream);
       }
@@ -678,19 +885,28 @@
     startBtn();
   }
 
-  buildQuestion('q1');
-  buildQuestion('q2');
+  buildQuestionsUI(FALLBACK_QUESTIONS);
 
   /* =========================================================
      5. SUBMIT
+        One "submissions" row per friend, one "answers" row per
+        question they answered. question_prompt is a frozen snapshot
+        of the wording at submit time, so editing or retiring a
+        question later never rewrites what an existing answer shows.
      ========================================================= */
   const form = document.getElementById('responseForm');
   const statusEl = document.getElementById('formStatus');
   const submitBtn = document.getElementById('submitBtn');
+  const okToShareEl = document.getElementById('okToShare');
 
   function setStatus(msg, kind) {
     statusEl.textContent = msg;
     statusEl.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function newId() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
   }
 
   form.addEventListener('submit', async (e) => {
@@ -698,46 +914,59 @@
     const name = document.getElementById('friendName').value.trim();
     if (!name) { setStatus('Tell me who you are first 🙂', 'error'); return; }
 
-    const payload = {friend_name: name, created_at: new Date().toISOString()};
-    const uploads = [];
-
-    for (const qid of ['q1','q2']) {
+    const answerPlans = [];
+    for (let idx = 0; idx < currentQuestions.length; idx++) {
+      const q = currentQuestions[idx];
+      const qid = qidFor(q, idx);
       const s = state[qid];
-      if (!s.mode) { setStatus('Answer both questions however you like — even one line is fine.', 'error'); return; }
+      if (!s || !s.mode) { setStatus('Answer every question however you like — even one line is fine.', 'error'); return; }
       if (s.mode === 'text') {
         if (!s.text || !s.text.trim()) { setStatus('That answer looks empty — add a line or switch to video/voice.', 'error'); return; }
-        payload[qid + '_type'] = 'text';
-        payload[qid + '_text'] = s.text.trim();
+        answerPlans.push({question_id: q.id, question_prompt: q.prompt, position: idx, kind: 'text', text_value: s.text.trim()});
       } else {
-        if (!s.blob) { setStatus('Finish recording (or upload a file) for both questions first.', 'error'); return; }
-        payload[qid + '_type'] = s.mode;
-        uploads.push({qid, blob: s.blob, ext: s.ext});
+        if (!s.blob) { setStatus('Finish recording (or upload a file) for every question first.', 'error'); return; }
+        answerPlans.push({question_id: q.id, question_prompt: q.prompt, position: idx, kind: s.mode, blob: s.blob, ext: s.ext});
       }
     }
 
-    if (!supa) {
-      setStatus('This page isn’t connected yet — tell Shubham.', 'error');
-      return;
-    }
+    if (!supa) { setStatus('This page isn’t connected yet — tell Shubham.', 'error'); return; }
 
     submitBtn.disabled = true;
     setStatus('Sending...', '');
 
     try {
+      const submissionId = newId();
+      const { error: subErr } = await supa.from('submissions').insert({
+        id: submissionId,
+        friend_name: name,
+        ok_to_share: !!(okToShareEl && okToShareEl.checked),
+      });
+      if (subErr) throw subErr;
+
       const safeName = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) || 'friend';
       const stamp = Date.now();
-      for (const u of uploads) {
-        const path = `${safeName}-${stamp}/${u.qid}.${u.ext}`;
-        const { error: upErr } = await supa.storage.from('responses').upload(path, u.blob, {
-          contentType: u.blob.type || undefined,
-          upsert: false,
-        });
-        if (upErr) throw upErr;
-        payload[u.qid + '_file_path'] = path;
-      }
 
-      const { error: insErr } = await supa.from('responses').insert(payload);
-      if (insErr) throw insErr;
+      for (const a of answerPlans) {
+        let filePath = null;
+        if (a.blob) {
+          filePath = `${safeName}-${stamp}/${a.position}.${a.ext}`;
+          const { error: upErr } = await supa.storage.from('responses').upload(filePath, a.blob, {
+            contentType: a.blob.type || undefined,
+            upsert: false,
+          });
+          if (upErr) throw upErr;
+        }
+        const { error: ansErr } = await supa.from('answers').insert({
+          submission_id: submissionId,
+          question_id: a.question_id,
+          question_prompt: a.question_prompt,
+          position: a.position,
+          kind: a.kind,
+          text_value: a.text_value || null,
+          file_path: filePath,
+        });
+        if (ansErr) throw ansErr;
+      }
 
       form.hidden = true;
       document.getElementById('doneState').hidden = false;
@@ -750,6 +979,117 @@
       submitBtn.disabled = false;
     }
   });
+
+  /* =========================================================
+     6. LOAD LIVE CONTENT FROM SUPABASE (edited from admin.html)
+        Every loader fails silently and leaves the page exactly as
+        it already renders — nothing here can make it worse.
+     ========================================================= */
+  async function loadSiteContent() {
+    if (!supa) return;
+    try {
+      const { data, error } = await supa.from('site_content').select('data').eq('id', 'main').maybeSingle();
+      if (error || !data || !data.data) return;
+      const d = data.data;
+      const map = {
+        'txt-eyebrow': d.eyebrow, 'txt-heading': d.heading,
+        'txt-intro1': d.intro_p1, 'txt-intro2': d.intro_p2,
+        'txt-namelabel': d.name_label, 'txt-submitsub': d.submit_sub,
+        'txt-doneheading': d.done_heading, 'txt-donebody': d.done_body,
+        'txt-footer': d.footer, 'txt-mosaicnote': d.mosaic_note,
+      };
+      Object.keys(map).forEach(id => {
+        if (map[id]) { const el = document.getElementById(id); if (el) el.textContent = map[id]; }
+      });
+      if (d.submit_label) submitBtn.textContent = d.submit_label;
+      if (d.gallery_layout && ['grid','flow','scatter'].includes(d.gallery_layout)) {
+        galleryLayout = d.gallery_layout;
+        rerenderMosaic();
+      }
+    } catch (e) { console.error('site_content load failed', e); }
+  }
+
+  async function loadGallery() {
+    if (!supa) return;
+    try {
+      const { data, error } = await supa.from('gallery_items').select('*')
+        .order('position', {ascending: true}).order('created_at', {ascending: true});
+      if (error || !data || !data.length) return;
+      lastFrames = data.map(row => ({
+        src: row.storage_path.startsWith('http')
+          ? row.storage_path
+          : `${SUPABASE_URL}/storage/v1/object/public/gallery/${row.storage_path}`,
+        caption: row.caption || '',
+        type: row.kind === 'video' ? 'video' : 'image',
+      }));
+      rerenderMosaic();
+    } catch (e) { console.error('gallery load failed', e); }
+  }
+
+  async function loadQuestions() {
+    if (!supa) return;
+    try {
+      const { data, error } = await supa.from('questions').select('*')
+        .eq('active', true).order('position', {ascending: true});
+      if (error || !data || !data.length) return;
+      buildQuestionsUI(data.map(q => ({id: q.id, prompt: q.prompt})));
+    } catch (e) { console.error('questions load failed', e); }
+  }
+
+  async function loadSharedAnswers() {
+    if (!supa) return;
+    const section = document.getElementById('sharedSection');
+    const list = document.getElementById('sharedList');
+    try {
+      const { data: subs, error } = await supa.from('submissions').select('*')
+        .eq('shared_approved', true).order('created_at', {ascending: false});
+      if (error || !subs || !subs.length) return;
+
+      const { data: answersData, error: ansErr } = await supa.from('answers').select('*')
+        .in('submission_id', subs.map(s => s.id)).order('position', {ascending: true});
+      if (ansErr || !answersData) return;
+
+      list.innerHTML = '';
+      for (const sub of subs) {
+        const card = document.createElement('div');
+        card.className = 'shared-card';
+        const who = document.createElement('div');
+        who.className = 'who';
+        who.textContent = sub.friend_name;
+        card.appendChild(who);
+
+        for (const a of answersData.filter(x => x.submission_id === sub.id)) {
+          const wrap = document.createElement('div');
+          wrap.className = 'shared-answer';
+          const sq = document.createElement('div');
+          sq.className = 'sq';
+          sq.textContent = a.question_prompt;
+          wrap.appendChild(sq);
+          if (a.kind === 'text') {
+            const p = document.createElement('p');
+            p.textContent = a.text_value;
+            wrap.appendChild(p);
+          } else if (a.file_path) {
+            const { data: signed } = await supa.storage.from('responses').createSignedUrl(a.file_path, 3600);
+            if (signed && signed.signedUrl) {
+              const el = document.createElement(a.kind === 'video' ? 'video' : 'audio');
+              el.src = signed.signedUrl; el.controls = true;
+              wrap.appendChild(el);
+            }
+          }
+          card.appendChild(wrap);
+        }
+        list.appendChild(card);
+      }
+      section.hidden = false;
+      registerReveal(section);
+    } catch (e) { console.error('shared answers load failed', e); }
+  }
+
+  loadSiteContent();
+  loadGallery();
+  loadQuestions();
+  loadSharedAnswers();
 })();
 </script>
 </body>
