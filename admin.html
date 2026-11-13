@@ -211,7 +211,7 @@
     </div>
     <div class="card">
       <h3>Add photos or videos</h3>
-      <p class="muted" style="margin-bottom:.6rem;">Pick as many as you like at once. Every video gets re-encoded at a capped size/bitrate regardless of how big the original is — keep this tab open and in the foreground while a batch runs; it processes one at a time, each roughly as long as its own length.</p>
+      <p class="muted" style="margin-bottom:.6rem;">Pick as many as you like at once. Photos get resized/compressed; videos upload exactly as recorded, no re-encoding, so size depends on the original file.</p>
       <div class="dropzone" id="dropzone">Tap to choose photos or videos from your phone</div>
       <input type="file" id="fileInput" accept="image/*,video/*" multiple hidden>
       <div class="field" style="margin-top:.8rem;"><label>Caption for all of them (optional — same caption, or leave blank)</label><input type="text" id="newCaption" placeholder="a one-line memory"></div>
@@ -887,11 +887,9 @@
     const isVideo = file.type.startsWith('video/');
     let blob, ext;
     if (isVideo) {
-      // every video gets re-encoded, regardless of original size — the
-      // point is a consistent, predictable output size as the library grows
-      progressEl.textContent = label + 'Compressing video... 0%';
-      blob = await compressVideo(file, { onProgress: p => { progressEl.textContent = label + 'Compressing video... ' + Math.round(p*100) + '%'; } });
-      ext = (blob === file) ? (file.name.split('.').pop() || 'mp4') : 'webm';
+      // uploaded and played back exactly as recorded — no re-encoding
+      blob = file;
+      ext = file.name.split('.').pop() || 'mp4';
     } else {
       progressEl.textContent = label + 'Compressing image...';
       blob = await compressImage(file, 1600, 0.8);
