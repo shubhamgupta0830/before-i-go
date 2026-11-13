@@ -117,6 +117,12 @@
   .ans-block p{ margin:0; font-family:'Fraunces',serif; font-size:.95rem; }
   .ans-block video, .ans-block audio{ width:100%; border-radius:8px; margin-top:.3rem; }
   .share-toggle{ display:flex; align-items:center; gap:.5rem; margin-top:.8rem; font-size:.82rem; }
+
+  /* storage meter */
+  .meter-track{ height:8px; border-radius:999px; background:var(--bg-elevated); border:1px solid var(--line); overflow:hidden; }
+  .meter-fill{ height:100%; width:0%; background:var(--good); transition:width .4s ease, background .4s ease; }
+  .meter-fill.warn{ background:var(--accent); }
+  .meter-fill.danger{ background:var(--danger); }
 </style>
 </head>
 <body>
@@ -141,6 +147,20 @@
     <span class="muted" id="whoami"></span>
     <span class="spacer"></span>
     <button class="btn small" id="signOutBtn">Sign out</button>
+  </div>
+
+  <div class="card" id="storageCard" style="margin-top:.9rem;">
+    <div class="row">
+      <h3 style="flex:1; font-size:.92rem;">Storage</h3>
+      <select id="planSelect" style="width:auto; font-size:.76rem; padding:.3rem .5rem;">
+        <option value="1">Free · 1 GB</option>
+        <option value="100">Pro · 100 GB</option>
+      </select>
+      <button class="btn small" id="refreshStorageBtn">↻</button>
+    </div>
+    <div class="meter-track" style="margin-top:.7rem;"><div class="meter-fill" id="storageMeterFill"></div></div>
+    <p class="muted" id="storageSummary" style="margin-top:.5rem;">Checking...</p>
+    <p class="muted" id="storageBreakdown" style="font-size:.72rem;"></p>
   </div>
 
   <nav class="tabs">
@@ -322,7 +342,80 @@
     loadPhotoDropsAdmin();
     loadOpenWhenAdmin();
     loadResponses();
+    loadStorageUsage();
   }
+
+  /* =========================================================
+     STORAGE METER — recursively sums every file in both buckets.
+     "gallery" is flat; "responses" nests files under a per-submission
+     folder (e.g. jane-173.../0.webm), so folders (entries with no
+     id/metadata) get listed one level deeper until only files remain.
+     ========================================================= */
+  const planSelect = document.getElementById('planSelect');
+  try { planSelect.value = localStorage.getItem('bfg_plan_gb') || '1'; } catch (e) {}
+  planSelect.addEventListener('change', () => {
+    try { localStorage.setItem('bfg_plan_gb', planSelect.value); } catch (e) {}
+    renderStorageUsage(lastUsage);
+  });
+
+  async function listAllRecursive(bucket, prefix) {
+    let totalBytes = 0, fileCount = 0;
+    const limit = 100;
+    let offset = 0;
+    while (true) {
+      const { data, error } = await supa.storage.from(bucket).list(prefix, { limit, offset, sortBy: {column:'name', order:'asc'} });
+      if (error || !data || !data.length) break;
+      for (const entry of data) {
+        const isFolder = entry.id == null && !entry.metadata;
+        if (isFolder) {
+          const sub = await listAllRecursive(bucket, (prefix ? prefix + '/' : '') + entry.name);
+          totalBytes += sub.totalBytes; fileCount += sub.fileCount;
+        } else {
+          totalBytes += (entry.metadata && entry.metadata.size) || 0;
+          fileCount += 1;
+        }
+      }
+      if (data.length < limit) break;
+      offset += limit;
+    }
+    return { totalBytes, fileCount };
+  }
+
+  let lastUsage = null;
+
+  function renderStorageUsage(usage) {
+    if (!usage) return;
+    const capGB = parseFloat(planSelect.value) || 1;
+    const capBytes = capGB * 1024 * 1024 * 1024;
+    const usedBytes = usage.gallery.totalBytes + usage.responses.totalBytes;
+    const pct = Math.min(100, (usedBytes / capBytes) * 100);
+    const fill = document.getElementById('storageMeterFill');
+    fill.style.width = pct.toFixed(1) + '%';
+    fill.className = 'meter-fill' + (pct > 85 ? ' danger' : pct > 60 ? ' warn' : '');
+    const mb = usedBytes / (1024 * 1024);
+    const capLabel = capGB >= 1024 ? (capGB/1024) + ' TB' : capGB + ' GB';
+    document.getElementById('storageSummary').textContent =
+      (mb < 1024 ? mb.toFixed(1) + ' MB' : (mb/1024).toFixed(2) + ' GB') + ' of ' + capLabel + ' used (' + pct.toFixed(1) + '%)';
+    document.getElementById('storageBreakdown').textContent =
+      `gallery: ${(usage.gallery.totalBytes/1024/1024).toFixed(1)} MB (${usage.gallery.fileCount} files) · ` +
+      `responses: ${(usage.responses.totalBytes/1024/1024).toFixed(1)} MB (${usage.responses.fileCount} files, friend answers + photo drops + open-when notes)`;
+  }
+
+  async function loadStorageUsage() {
+    document.getElementById('storageSummary').textContent = 'Checking...';
+    try {
+      const [gallery, responses] = await Promise.all([
+        listAllRecursive('gallery', ''),
+        listAllRecursive('responses', ''),
+      ]);
+      lastUsage = { gallery, responses };
+      renderStorageUsage(lastUsage);
+    } catch (e) {
+      document.getElementById('storageSummary').textContent = 'Could not check storage (' + (e.message || e) + ').';
+    }
+  }
+
+  document.getElementById('refreshStorageBtn').addEventListener('click', loadStorageUsage);
 
   /* =========================================================
      TEXT + LAYOUT
