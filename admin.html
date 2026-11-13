@@ -36,7 +36,7 @@
   .login-box h2{ text-align:center; font-size:1.2rem; margin-bottom:1.4rem; }
   .field{ margin-bottom:1rem; }
   .field label{ display:block; font-size:.78rem; color:var(--muted-dim); margin-bottom:.4rem; }
-  input[type=email], input[type=password], input[type=text], textarea, select{
+  input[type=email], input[type=password], input[type=text], input[type=number], textarea, select{
     width:100%; background:var(--bg-elevated); border:1px solid var(--line); border-radius:8px;
     padding:.65rem .8rem; font-size:.92rem; color:var(--fg); font-family:inherit;
   }
@@ -182,6 +182,17 @@
     <div class="card">
       <h3>Gallery layout</h3>
       <div id="layoutOpts"></div>
+      <div class="row" style="gap:1rem; margin-top:.8rem;">
+        <div class="field" style="flex:1; margin-bottom:0;">
+          <label>Columns on mobile</label>
+          <input type="number" id="colsMobileInput" min="1" max="6">
+        </div>
+        <div class="field" style="flex:1; margin-bottom:0;">
+          <label>Columns on desktop</label>
+          <input type="number" id="colsDesktopInput" min="1" max="10">
+        </div>
+      </div>
+      <p class="muted" style="margin-top:.5rem;">Applies to the Grid and Flow layouts. Wider desktop screens get a few extra columns automatically beyond what's set here.</p>
     </div>
     <div class="card">
       <h3>Page text</h3>
@@ -526,6 +537,17 @@
     });
   }
 
+  function renderColsFields() {
+    const mobileInput = document.getElementById('colsMobileInput');
+    const desktopInput = document.getElementById('colsDesktopInput');
+    if (siteData.gallery_cols_mobile == null) siteData.gallery_cols_mobile = 3;
+    if (siteData.gallery_cols_desktop == null) siteData.gallery_cols_desktop = 5;
+    mobileInput.value = siteData.gallery_cols_mobile;
+    desktopInput.value = siteData.gallery_cols_desktop;
+    mobileInput.addEventListener('input', () => { siteData.gallery_cols_mobile = parseInt(mobileInput.value, 10) || 1; });
+    desktopInput.addEventListener('input', () => { siteData.gallery_cols_desktop = parseInt(desktopInput.value, 10) || 1; });
+  }
+
   async function loadTextFields() {
     try {
       const { data } = await supa.from('site_content').select('data').eq('id', 'main').maybeSingle();
@@ -533,6 +555,7 @@
     } catch (e) { siteData = {}; }
     renderLayoutOpts();
     renderTextFields();
+    renderColsFields();
   }
 
   document.getElementById('saveTextBtn').addEventListener('click', async () => {

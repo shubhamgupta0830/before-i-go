@@ -68,37 +68,22 @@
   }
   .mosaic{ position:relative; }
 
+  /* --cols is set from JS (computeCols in section 1), driven by the
+     admin-configured mobile/desktop column counts plus a bit of extra
+     scaling for very wide screens and for galleries with lots of items. */
   .mosaic.layout-grid{
     display:grid;
-    grid-template-columns:repeat(3, 1fr);
+    grid-template-columns:repeat(var(--cols, 3), 1fr);
     grid-auto-rows:1fr;
     gap:6px;
     height:62vh;
     min-height:380px;
     max-height:620px;
   }
-  @media (min-width:640px){ .mosaic.layout-grid{ grid-template-columns:repeat(4, 1fr); } }
-  @media (min-width:960px){ .mosaic.layout-grid{ grid-template-columns:repeat(5, 1fr); } }
-  .mosaic.layout-grid.mosaic-l{ grid-template-columns:repeat(4, 1fr); }
-  @media (min-width:640px){ .mosaic.layout-grid.mosaic-l{ grid-template-columns:repeat(5, 1fr); } }
-  @media (min-width:960px){ .mosaic.layout-grid.mosaic-l{ grid-template-columns:repeat(6, 1fr); } }
-  .mosaic.layout-grid.mosaic-xl{ grid-template-columns:repeat(5, 1fr); }
-  @media (min-width:640px){ .mosaic.layout-grid.mosaic-xl{ grid-template-columns:repeat(6, 1fr); } }
-  @media (min-width:960px){ .mosaic.layout-grid.mosaic-xl{ grid-template-columns:repeat(7, 1fr); } }
   .mosaic.layout-grid .mosaic-item img,
   .mosaic.layout-grid .mosaic-item video{ object-fit:cover; }
 
-  .mosaic.layout-flow{ column-count:3; column-gap:8px; }
-  @media (min-width:640px){ .mosaic.layout-flow{ column-count:3; } }
-  @media (min-width:960px){ .mosaic.layout-flow{ column-count:4; } }
-  @media (min-width:1280px){ .mosaic.layout-flow{ column-count:5; } }
-  @media (min-width:1600px){ .mosaic.layout-flow{ column-count:6; } }
-  @media (min-width:1900px){ .mosaic.layout-flow{ column-count:7; } }
-  .mosaic.layout-flow.mosaic-l{ column-count:3; }
-  @media (min-width:640px){ .mosaic.layout-flow.mosaic-l{ column-count:4; } }
-  @media (min-width:960px){ .mosaic.layout-flow.mosaic-l{ column-count:5; } }
-  @media (min-width:1280px){ .mosaic.layout-flow.mosaic-l{ column-count:6; } }
-  @media (min-width:1900px){ .mosaic.layout-flow.mosaic-l{ column-count:7; } }
+  .mosaic.layout-flow{ column-count:var(--cols, 3); column-gap:8px; }
   .mosaic.layout-flow .mosaic-item{ display:inline-block; width:100%; break-inside:avoid; -webkit-column-break-inside:avoid; margin:0 0 8px; }
   .mosaic.layout-flow .mosaic-item img,
   .mosaic.layout-flow .mosaic-item video{ height:auto; object-fit:initial; }
@@ -123,7 +108,8 @@
     will-change:transform;
   }
   .mosaic.layout-grid .mosaic-item:hover, .mosaic.layout-grid .mosaic-item:focus-visible, .mosaic.layout-grid .mosaic-item:active,
-  .mosaic.layout-flow .mosaic-item:hover, .mosaic.layout-flow .mosaic-item:focus-visible, .mosaic.layout-flow .mosaic-item:active{
+  .mosaic.layout-flow .mosaic-item:hover, .mosaic.layout-flow .mosaic-item:focus-visible, .mosaic.layout-flow .mosaic-item:active,
+  .mosaic-item.zoomed{
     transform:scale(1.1);
     z-index:5;
     box-shadow:0 16px 38px -10px rgba(0,0,0,.6);
@@ -151,7 +137,8 @@
   }
   .mosaic-item:hover .mosaic-cap,
   .mosaic-item:focus-visible .mosaic-cap,
-  .mosaic-item:active .mosaic-cap{
+  .mosaic-item:active .mosaic-cap,
+  .mosaic-item.zoomed .mosaic-cap{
     opacity:1;
     transform:translateY(0);
   }
@@ -443,11 +430,6 @@
 </head>
 <body>
 
-<div class="mosaic-wrap">
-  <div class="mosaic" id="mosaic" aria-label="Photos from New York"></div>
-</div>
-<p class="mosaic-note" id="txt-mosaicnote">six months of this city — hover one for a closer look</p>
-
 <div class="wrap">
 
   <div class="divider reveal"><span class="line"></span><span class="mark">✦</span><span class="line"></span></div>
@@ -458,6 +440,14 @@
     <p class="dropcap" id="txt-intro1">Six months isn't long, but it was long enough that most of the good parts had you in them. Before I pack this city away, I wanted to ask you something — however you'd rather answer it. Say it to a camera, record a voice note, or just write it down.</p>
     <p id="txt-intro2">Two questions. No rush, and no wrong way to answer.</p>
   </section>
+
+</div>
+
+<div class="mosaic-wrap">
+  <div class="mosaic" id="mosaic" aria-label="Photos from New York"></div>
+</div>
+
+<div class="wrap">
 
   <section class="namefield reveal">
     <label for="friendName" id="txt-namelabel">Sign your name before you start</label>
@@ -569,6 +559,43 @@
   const mutedIcon = '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 9l5 5M21 9l-5 5" stroke-linecap="round"/></svg>';
   const loudIcon = '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 8a5 5 0 010 8M19 5a9 9 0 010 14" stroke-linecap="round"/></svg>';
 
+  // Column counts for the grid/flow layouts: admin-configured mobile/desktop
+  // base values (site_content.gallery_cols_mobile/_desktop), with a little
+  // extra added for very wide screens and for galleries with lots of items.
+  let adminCols = { mobile: 3, desktop: 5 };
+  function computeCols(frameCount) {
+    const mobile = Math.max(1, parseInt(adminCols.mobile, 10) || 3);
+    const desktop = Math.max(1, parseInt(adminCols.desktop, 10) || 5);
+    const width = window.innerWidth;
+    let cols = width < 640 ? mobile : desktop;
+    if (width >= 640) cols += Math.floor((width - 640) / 320);
+    if (frameCount > 16) cols += 2;
+    else if (frameCount > 9) cols += 1;
+    return Math.max(1, Math.round(cols));
+  }
+  function applyMosaicCols(frameCount) {
+    mosaicEl.style.setProperty('--cols', computeCols(frameCount));
+  }
+
+  // On touch devices there's no hover, so tapping a photo/video toggles the
+  // same enlarged look desktop gets on hover (same scale, so same max size).
+  const isTouch = !window.matchMedia('(hover: hover)').matches;
+  function shrinkScatterItem(item) {
+    delete item.dataset.zoomed;
+    item.style.transform = `rotate(${item.dataset.baseRot || 0}deg)`;
+    item.style.zIndex = '';
+  }
+  function closeAllZoomed(except) {
+    mosaicEl.querySelectorAll('.mosaic-item').forEach(other => {
+      if (other === except) return;
+      if (other.dataset.zoomed) shrinkScatterItem(other);
+      other.classList.remove('zoomed');
+    });
+  }
+  document.addEventListener('click', (e) => {
+    if (!mosaicEl.contains(e.target)) closeAllZoomed();
+  });
+
   function layoutScatterPositions() {
     const items = Array.from(mosaicEl.querySelectorAll('.mosaic-item'));
     if (!items.length) { mosaicEl.style.height = ''; return; }
@@ -645,12 +672,25 @@
         item.addEventListener('mouseenter', () => { item.style.transform = 'rotate(0deg) scale(1.2)'; item.style.zIndex = '5'; });
         item.addEventListener('mouseleave', () => { item.style.transform = `rotate(${item.dataset.baseRot || 0}deg)`; item.style.zIndex = ''; });
       }
+      if (isTouch) {
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (layout === 'scatter') {
+            const wasZoomed = !!item.dataset.zoomed;
+            closeAllZoomed(item);
+            if (wasZoomed) { shrinkScatterItem(item); }
+            else { item.dataset.zoomed = '1'; item.style.transform = 'rotate(0deg) scale(1.2)'; item.style.zIndex = '5'; }
+          } else {
+            const wasZoomed = item.classList.contains('zoomed');
+            closeAllZoomed(item);
+            item.classList.toggle('zoomed', !wasZoomed);
+          }
+        });
+      }
       mosaicEl.appendChild(item);
     });
-    if (layout === 'grid' || layout === 'flow') {
-      if (frames.length > 16) mosaicEl.classList.add('mosaic-xl');
-      else if (frames.length > 9) mosaicEl.classList.add('mosaic-l');
-    }
+    if (layout === 'grid' || layout === 'flow') applyMosaicCols(frames.length);
+    else mosaicEl.style.removeProperty('--cols');
     if (layout === 'scatter') requestAnimationFrame(layoutScatterPositions);
   }
 
@@ -658,6 +698,14 @@
   let lastFrames = FRAMES;
   function rerenderMosaic() { renderMosaic(lastFrames, galleryLayout); }
   rerenderMosaic();
+
+  let colsResizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(colsResizeTimer);
+    colsResizeTimer = setTimeout(() => {
+      if (galleryLayout === 'grid' || galleryLayout === 'flow') applyMosaicCols(lastFrames.length);
+    }, 150);
+  });
 
   /* =========================================================
      2. SCROLL REVEAL
@@ -1074,7 +1122,7 @@
         'txt-intro1': d.intro_p1, 'txt-intro2': d.intro_p2,
         'txt-namelabel': d.name_label, 'txt-submitsub': d.submit_sub,
         'txt-doneheading': d.done_heading, 'txt-donebody': d.done_body,
-        'txt-footer': d.footer, 'txt-mosaicnote': d.mosaic_note,
+        'txt-footer': d.footer,
         'txt-owheading': d.ow_heading, 'txt-owsub': d.ow_sub,
         'txt-owtriggerlabel': d.ow_trigger_label, 'txt-owdone': d.ow_done_text,
         'txt-pdheading': d.pd_heading, 'txt-pdsub': d.pd_sub, 'txt-pddone': d.pd_done_text,
@@ -1088,10 +1136,17 @@
       if (d.pd_dropzone_text) document.getElementById('pdDzText').textContent = d.pd_dropzone_text;
       if (d.pd_caption_placeholder) document.getElementById('pdCaption').placeholder = d.pd_caption_placeholder;
       if (d.pd_submit_label) document.getElementById('pdSubmitBtn').textContent = d.pd_submit_label;
+      let needsRerender = false;
       if (d.gallery_layout && ['grid','flow','scatter'].includes(d.gallery_layout)) {
         galleryLayout = d.gallery_layout;
-        rerenderMosaic();
+        needsRerender = true;
       }
+      if (d.gallery_cols_mobile || d.gallery_cols_desktop) {
+        if (d.gallery_cols_mobile) adminCols.mobile = d.gallery_cols_mobile;
+        if (d.gallery_cols_desktop) adminCols.desktop = d.gallery_cols_desktop;
+        needsRerender = true;
+      }
+      if (needsRerender) rerenderMosaic();
     } catch (e) { console.error('site_content load failed', e); }
   }
 
