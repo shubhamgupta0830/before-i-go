@@ -53,76 +53,70 @@
   .reveal{opacity:0; transform:translateY(14px); transition:opacity .9s cubic-bezier(.16,.8,.3,1), transform .9s cubic-bezier(.16,.8,.3,1);}
   .reveal.in{opacity:1; transform:translateY(0);}
 
-  /* ---------- Gallery ---------- */
-  .gallery{
+  /* ---------- Photo mosaic ---------- */
+  .mosaic-wrap{
+    padding:max(14px, env(safe-area-inset-top,0px)) max(14px, env(safe-area-inset-left,0px)) 0;
+  }
+  .mosaic{
+    column-count:2;
+    column-gap:8px;
+  }
+  @media (min-width:640px){ .mosaic{ column-count:3; } }
+  @media (min-width:960px){ .mosaic{ column-count:4; } }
+  /* when the collection grows, columns get a touch denser instead of the page getting absurdly tall */
+  .mosaic.mosaic-l{ column-count:3; }
+  @media (min-width:640px){ .mosaic.mosaic-l{ column-count:4; } }
+  @media (min-width:960px){ .mosaic.mosaic-l{ column-count:5; } }
+  .mosaic.mosaic-xl{ column-count:4; }
+  @media (min-width:640px){ .mosaic.mosaic-xl{ column-count:5; } }
+  @media (min-width:960px){ .mosaic.mosaic-xl{ column-count:6; } }
+
+  .mosaic-item{
+    display:inline-block;
+    width:100%;
+    break-inside:avoid;
+    -webkit-column-break-inside:avoid;
+    margin:0 0 8px;
     position:relative;
-    height:64vh;
-    min-height:400px;
-    max-height:640px;
+    border-radius:10px;
     overflow:hidden;
-    background:#000;
+    background:var(--bg-elevated);
+    outline:none;
+    transition:transform .45s cubic-bezier(.2,.8,.2,1), box-shadow .45s ease;
+    will-change:transform;
   }
-  .gallery-frame{
-    position:absolute; inset:0;
-    opacity:0;
-    transition:opacity 1.6s ease;
-    display:flex;
-    align-items:flex-end;
+  .mosaic-item:hover, .mosaic-item:focus-visible, .mosaic-item:active{
+    transform:scale(1.08);
+    z-index:5;
+    box-shadow:0 16px 38px -10px rgba(0,0,0,.6);
   }
-  .gallery-frame.active{opacity:1;}
-  .gallery-frame .bg{
-    position:absolute; inset:0;
-    background-size:cover;
-    background-position:center;
-    transform:scale(1.04);
+  .mosaic-item img, .mosaic-item video{
+    display:block;
+    width:100%;
+    height:auto;
+    -webkit-user-drag:none;
   }
-  .gallery-frame.active .bg{
-    animation:slowDrift 9s ease-out forwards;
-  }
-  @keyframes slowDrift{from{transform:scale(1.08);} to{transform:scale(1);}}
-  .gallery-frame .bg.placeholder{
-    background:
-      radial-gradient(ellipse 120% 80% at 50% 110%, rgba(232,184,75,.14), transparent 60%),
-      linear-gradient(150deg, var(--grad-a,#1a2436), var(--grad-b,#30210f));
-  }
-  .gallery-frame .bg.placeholder::after{
-    content:"";
-    position:absolute; inset:0;
-    background-image:
-      radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,.55) 0, transparent 50%),
-      radial-gradient(1px 1px at 65% 15%, rgba(255,255,255,.45) 0, transparent 50%),
-      radial-gradient(1.5px 1.5px at 80% 60%, rgba(255,255,255,.4) 0, transparent 50%),
-      radial-gradient(1px 1px at 40% 70%, rgba(255,255,255,.35) 0, transparent 50%),
-      radial-gradient(1px 1px at 90% 85%, rgba(255,255,255,.45) 0, transparent 50%),
-      radial-gradient(1px 1px at 12% 92%, rgba(255,255,255,.3) 0, transparent 50%);
-  }
-  .gallery-frame .scrim{
-    position:absolute; inset:0;
-    background:linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(6,5,8,.95) 100%);
-  }
-  .gallery-frame .cap{
-    position:relative;
-    z-index:1;
-    padding:0 22px 22px;
+  .mosaic-cap{
+    position:absolute; inset:auto 0 0 0;
+    padding:1.6rem .6rem .5rem;
+    background:linear-gradient(180deg, rgba(0,0,0,0), rgba(5,4,7,.9) 72%);
+    color:#f4e9d2;
     font-family:'Fraunces',serif;
     font-style:italic;
     font-weight:450;
-    font-size:1.1rem;
-    color:#f4e9d2;
-    opacity:.95;
-    text-wrap:balance;
+    font-size:.74rem;
+    line-height:1.3;
+    opacity:0;
+    transform:translateY(4px);
+    transition:opacity .3s ease, transform .3s ease;
   }
-  .gallery-dots{
-    position:absolute; bottom:14px; right:18px; z-index:2;
-    display:flex; gap:7px;
+  .mosaic-item:hover .mosaic-cap,
+  .mosaic-item:focus-visible .mosaic-cap,
+  .mosaic-item:active .mosaic-cap{
+    opacity:1;
+    transform:translateY(0);
   }
-  .gallery-dots span{
-    width:5px; height:5px; border-radius:50%;
-    background:rgba(255,255,255,.3);
-    transition:background .4s, width .4s;
-  }
-  .gallery-dots span.active{background:var(--accent); width:14px; border-radius:3px;}
-  .gallery-note{
+  .mosaic-note{
     text-align:center;
     font-size:.72rem;
     color:var(--muted-dim);
@@ -332,8 +326,10 @@
 </head>
 <body>
 
-<div class="gallery" id="gallery" aria-label="Photos and clips from New York"></div>
-<p class="gallery-note">six months of this city, in no particular order</p>
+<div class="mosaic-wrap">
+  <div class="mosaic" id="mosaic" aria-label="Photos from New York"></div>
+</div>
+<p class="mosaic-note">six months of this city — hover one for a closer look</p>
 
 <div class="wrap">
 
@@ -397,57 +393,48 @@
   "use strict";
 
   /* =========================================================
-     1. GALLERY — swap these placeholder frames for real media.
-        Each frame: {type:'placeholder'|'image'|'video', src, caption, gradA, gradB}
-        For a real photo:  {type:'image', src:'media/photo1.jpg', caption:'...'}
-        For a real clip:   {type:'video', src:'media/clip1.mp4', caption:'...'}
+     1. PHOTO MOSAIC
+        To add more later: drop a .jpg into images/, then add one
+        line below — {src:'images/filename.jpg', caption:'...'}.
+        The grid re-flows itself; nothing else needs to change.
+        A short clip works too: {src:'images/clip.mp4', type:'video', caption:'...'}.
      ========================================================= */
   const FRAMES = [
-    {type:'placeholder', gradA:'#1a2436', gradB:'#30210f', caption:'the first subway ride that didn’t feel like a maze'},
-    {type:'placeholder', gradA:'#201829', gradB:'#122436', caption:'rooftops, mostly uninvited'},
-    {type:'placeholder', gradA:'#2c1a1a', gradB:'#1a2130', caption:'the bodega guy who knew my order by week two'},
-    {type:'placeholder', gradA:'#17232c', gradB:'#2a1f12', caption:'a lot of walking, not always toward anywhere'},
-    {type:'placeholder', gradA:'#241a2e', gradB:'#132421', caption:'you, mostly — that was the actual good part'},
+    {src:'images/top-of-the-rock.jpg', caption:'the view that convinced me this was real'},
+    {src:'images/international-house.jpg', caption:'155 — the building that became home'},
+    {src:'images/world-cup-night.jpg', caption:'a hundred countries, one screen, one goal that mattered'},
+    {src:'images/aerial-silks.jpg', caption:'aerial silks. several bruises. zero regrets.'},
+    {src:'images/bumblebee.jpg', caption:'became a bumblebee at the botanical garden, no notes'},
+    {src:'images/dance-class.jpg', caption:'the class that rearranged my whole week'},
+    {src:'images/times-square.jpg', caption:'a little overwhelmed, mostly in love with the chaos'},
+    {src:'images/piano-bar.jpg', caption:'the night I played piano in a bar and nobody stopped me'},
+    {src:'images/acro-lift.jpg', caption:'the day someone finally trusted me to hold them up'},
   ];
 
-  const galleryEl = document.getElementById('gallery');
-  FRAMES.forEach((f, i) => {
-    const frame = document.createElement('div');
-    frame.className = 'gallery-frame' + (i === 0 ? ' active' : '');
-    const bg = document.createElement('div');
-    if (f.type === 'placeholder') {
-      bg.className = 'bg placeholder';
-      bg.style.setProperty('--grad-a', f.gradA);
-      bg.style.setProperty('--grad-b', f.gradB);
-    } else if (f.type === 'image') {
-      bg.className = 'bg';
-      bg.style.backgroundImage = `url('${f.src}')`;
-    } else if (f.type === 'video') {
-      bg.className = 'bg';
-      const v = document.createElement('video');
-      v.src = f.src; v.autoplay = true; v.muted = true; v.loop = true; v.playsInline = true;
-      v.style.position='absolute'; v.style.inset='0'; v.style.width='100%'; v.style.height='100%'; v.style.objectFit='cover';
-      frame.appendChild(v);
+  const mosaicEl = document.getElementById('mosaic');
+  FRAMES.forEach(f => {
+    const item = document.createElement('div');
+    item.className = 'mosaic-item';
+    item.tabIndex = 0;
+    let media;
+    if (f.type === 'video') {
+      media = document.createElement('video');
+      media.src = f.src; media.autoplay = true; media.muted = true; media.loop = true; media.playsInline = true;
+    } else {
+      media = document.createElement('img');
+      media.src = f.src; media.alt = f.caption || ''; media.loading = 'lazy'; media.decoding = 'async';
     }
-    frame.appendChild(bg);
-    const scrim = document.createElement('div'); scrim.className='scrim'; frame.appendChild(scrim);
-    const cap = document.createElement('div'); cap.className='cap'; cap.textContent = f.caption || ''; frame.appendChild(cap);
-    galleryEl.appendChild(frame);
+    item.appendChild(media);
+    if (f.caption) {
+      const cap = document.createElement('div');
+      cap.className = 'mosaic-cap';
+      cap.textContent = f.caption;
+      item.appendChild(cap);
+    }
+    mosaicEl.appendChild(item);
   });
-  const dotsWrap = document.createElement('div'); dotsWrap.className='gallery-dots';
-  FRAMES.forEach((_, i)=>{ const d=document.createElement('span'); if(i===0) d.className='active'; dotsWrap.appendChild(d); });
-  galleryEl.appendChild(dotsWrap);
-
-  let galleryIdx = 0;
-  const frameEls = galleryEl.querySelectorAll('.gallery-frame');
-  const dotEls = dotsWrap.querySelectorAll('span');
-  setInterval(() => {
-    frameEls[galleryIdx].classList.remove('active');
-    dotEls[galleryIdx].classList.remove('active');
-    galleryIdx = (galleryIdx + 1) % frameEls.length;
-    frameEls[galleryIdx].classList.add('active');
-    dotEls[galleryIdx].classList.add('active');
-  }, 3800);
+  if (FRAMES.length > 16) mosaicEl.classList.add('mosaic-xl');
+  else if (FRAMES.length > 9) mosaicEl.classList.add('mosaic-l');
 
   /* =========================================================
      2. SCROLL REVEAL

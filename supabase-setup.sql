@@ -20,9 +20,11 @@ alter table public.responses enable row level security;
 
 -- anyone can submit a response; nobody (besides you, via the
 -- Supabase dashboard) can read, edit, or delete one.
+-- (uses "public" rather than "anon" -- this project's publishable-key
+-- requests didn't resolve to the "anon" role, "public" covers it safely)
 create policy "anyone can submit a response"
 on public.responses for insert
-to anon
+to public
 with check (true);
 
 -- storage bucket for the video/audio files, private (not public)
