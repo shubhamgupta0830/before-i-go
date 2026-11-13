@@ -62,6 +62,8 @@
      Video tiles, in every layout: muted preview frame at rest,
      plays (still muted) on hover, with a tap-to-unmute button. */
   .mosaic-wrap{
+    max-width:1400px;
+    margin:0 auto;
     padding:max(14px, env(safe-area-inset-top,0px)) max(14px, env(safe-area-inset-left,0px)) 0;
   }
   .mosaic{ position:relative; }
@@ -89,9 +91,12 @@
   .mosaic.layout-flow{ column-count:2; column-gap:8px; }
   @media (min-width:640px){ .mosaic.layout-flow{ column-count:3; } }
   @media (min-width:960px){ .mosaic.layout-flow{ column-count:4; } }
+  @media (min-width:1280px){ .mosaic.layout-flow{ column-count:5; } }
+  @media (min-width:1600px){ .mosaic.layout-flow{ column-count:6; } }
   .mosaic.layout-flow.mosaic-l{ column-count:3; }
   @media (min-width:640px){ .mosaic.layout-flow.mosaic-l{ column-count:4; } }
   @media (min-width:960px){ .mosaic.layout-flow.mosaic-l{ column-count:5; } }
+  @media (min-width:1280px){ .mosaic.layout-flow.mosaic-l{ column-count:6; } }
   .mosaic.layout-flow .mosaic-item{ display:inline-block; width:100%; break-inside:avoid; -webkit-column-break-inside:avoid; margin:0 0 8px; }
   .mosaic.layout-flow .mosaic-item img,
   .mosaic.layout-flow .mosaic-item video{ height:auto; object-fit:initial; }
