@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Before I Go</title>
+<meta name="description" content="A few questions for the people who made New York home.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,450;0,9..144,500;0,9..144,600;1,9..144,440;1,9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0e0c12;
+    --bg-elevated:#18151d;
+    --card:#1c1821;
+    --card-hover:#211c26;
+    --fg:#f5f1ea;
+    --muted:#a69d8f;
+    --muted-dim:#716a60;
+    --accent:#e8b84b;
+    --accent-soft:rgba(232,184,75,.10);
+    --accent-dim:#6b5527;
+    --line:#2d2730;
+    --line-soft:#242029;
+    --danger:#e2645f;
+    --good:#5fb88a;
+    color-scheme: dark;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms!important; transition-duration:.001ms!important;}
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--fg);
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:4rem;
+  }
+  img,video{max-width:100%;}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:500;letter-spacing:-0.01em;text-wrap:balance;margin:0;}
+  .wrap{
+    max-width:600px;
+    margin:0 auto;
+    padding-left:max(22px, env(safe-area-inset-left,0px));
+    padding-right:max(22px, env(safe-area-inset-right,0px));
+  }
+
+  /* ---------- reveal-on-scroll ---------- */
+  .reveal{opacity:0; transform:translateY(14px); transition:opacity .9s cubic-bezier(.16,.8,.3,1), transform .9s cubic-bezier(.16,.8,.3,1);}
+  .reveal.in{opacity:1; transform:translateY(0);}
+
+  /* ---------- Gallery ---------- */
+  .gallery{
+    position:relative;
+    height:64vh;
+    min-height:400px;
+    max-height:640px;
+    overflow:hidden;
+    background:#000;
+  }
+  .gallery-frame{
+    position:absolute; inset:0;
+    opacity:0;
+    transition:opacity 1.6s ease;
+    display:flex;
+    align-items:flex-end;
+  }
+  .gallery-frame.active{opacity:1;}
+  .gallery-frame .bg{
+    position:absolute; inset:0;
+    background-size:cover;
+    background-position:center;
+    transform:scale(1.04);
+  }
+  .gallery-frame.active .bg{
+    animation:slowDrift 9s ease-out forwards;
+  }
+  @keyframes slowDrift{from{transform:scale(1.08);} to{transform:scale(1);}}
+  .gallery-frame .bg.placeholder{
+    background:
+      radial-gradient(ellipse 120% 80% at 50% 110%, rgba(232,184,75,.14), transparent 60%),
+      linear-gradient(150deg, var(--grad-a,#1a2436), var(--grad-b,#30210f));
+  }
+  .gallery-frame .bg.placeholder::after{
+    content:"";
+    position:absolute; inset:0;
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,.55) 0, transparent 50%),
+      radial-gradient(1px 1px at 65% 15%, rgba(255,255,255,.45) 0, transparent 50%),
+      radial-gradient(1.5px 1.5px at 80% 60%, rgba(255,255,255,.4) 0, transparent 50%),
+      radial-gradient(1px 1px at 40% 70%, rgba(255,255,255,.35) 0, transparent 50%),
+      radial-gradient(1px 1px at 90% 85%, rgba(255,255,255,.45) 0, transparent 50%),
+      radial-gradient(1px 1px at 12% 92%, rgba(255,255,255,.3) 0, transparent 50%);
+  }
+  .gallery-frame .scrim{
+    position:absolute; inset:0;
+    background:linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(6,5,8,.95) 100%);
+  }
+  .gallery-frame .cap{
+    position:relative;
+    z-index:1;
+    padding:0 22px 22px;
+    font-family:'Fraunces',serif;
+    font-style:italic;
+    font-weight:450;
+    font-size:1.1rem;
+    color:#f4e9d2;
+    opacity:.95;
+    text-wrap:balance;
+  }
+  .gallery-dots{
+    position:absolute; bottom:14px; right:18px; z-index:2;
+    display:flex; gap:7px;
+  }
+  .gallery-dots span{
+    width:5px; height:5px; border-radius:50%;
+    background:rgba(255,255,255,.3);
+    transition:background .4s, width .4s;
+  }
+  .gallery-dots span.active{background:var(--accent); width:14px; border-radius:3px;}
+  .gallery-note{
+    text-align:center;
+    font-size:.72rem;
+    color:var(--muted-dim);
+    padding:10px 0 0;
+    letter-spacing:.03em;
+    font-style:italic;
+  }
+
+  /* ---------- divider ---------- */
+  .divider{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    margin:2.2rem 0 0; color:var(--muted-dim);
+  }
+  .divider .line{height:1px; width:40px; background:var(--line);}
+  .divider .mark{font-size:.8rem; color:var(--accent-dim);}
+
+  /* ---------- Intro ---------- */
+  .intro{padding:2rem 0 1.6rem;}
+  .intro .eyebrow{
+    font-size:.72rem;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin-bottom:1.1rem;
+    font-weight:600;
+    text-align:center;
+  }
+  .intro h1{font-size:2.1rem; margin-bottom:1.3rem; text-align:center;}
+  .intro p{color:var(--muted); margin:0 0 1rem; font-size:1rem;}
+  .intro p:last-child{margin-bottom:0;}
+  .intro strong{color:var(--fg); font-weight:600;}
+  .dropcap::first-letter{
+    font-family:'Fraunces',serif;
+    font-size:3.2rem;
+    font-weight:500;
+    float:left;
+    line-height:.78;
+    padding:.05em .09em 0 0;
+    color:var(--accent);
+  }
+
+  /* ---------- Name ---------- */
+  .namefield{padding:1.8rem 0 2rem; text-align:center;}
+  .namefield label{
+    display:block; font-size:.78rem; color:var(--muted-dim); margin-bottom:.9rem;
+    letter-spacing:.04em;
+  }
+  .signature-input{
+    position:relative;
+    max-width:320px;
+    margin:0 auto;
+  }
+  input[type=text]{
+    width:100%;
+    background:transparent;
+    border:none;
+    border-bottom:1px solid var(--line);
+    border-radius:0;
+    padding:.5rem .2rem .7rem;
+    font-size:1.3rem;
+    font-family:'Fraunces',serif;
+    font-weight:450;
+    color:var(--fg);
+    text-align:center;
+    transition:border-color .25s;
+  }
+  input[type=text]:focus{outline:none; border-bottom-color:var(--accent);}
+  input[type=text]::placeholder{color:var(--muted-dim); font-style:italic;}
+
+  /* ---------- Question cards ---------- */
+  .qcard{
+    background:var(--card);
+    border:1px solid var(--line-soft);
+    border-radius:18px;
+    padding:1.6rem 1.5rem;
+    margin:1.3rem 0;
+    transition:border-color .3s, background .3s;
+  }
+  .qcard.answered{border-color:var(--accent-dim); background:var(--card-hover);}
+  .qcard-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:.6rem;}
+  .qcard .qnum{
+    font-size:.7rem; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--accent); font-weight:600;
+  }
+  .qcard .qcheck{
+    font-size:.75rem; color:var(--good); opacity:0; transition:opacity .3s;
+    display:flex; align-items:center; gap:.3rem; font-weight:600;
+  }
+  .qcard.answered .qcheck{opacity:1;}
+  .qcard h2{font-size:1.24rem; margin-bottom:1.2rem; font-weight:500; line-height:1.35;}
+  .modes{display:flex; gap:.55rem; margin-bottom:1.1rem; flex-wrap:wrap;}
+  .mode-btn{
+    flex:1 1 0;
+    min-width:88px;
+    background:var(--bg-elevated);
+    border:1px solid var(--line);
+    color:var(--muted);
+    border-radius:12px;
+    padding:.7rem .5rem .6rem;
+    font-size:.82rem;
+    font-weight:500;
+    font-family:inherit;
+    cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:.4rem;
+    transition:border-color .18s, color .18s, background .18s, transform .18s;
+  }
+  .mode-btn:hover:not(.active):not(:disabled){border-color:var(--muted-dim); color:var(--fg); transform:translateY(-1px);}
+  .mode-btn svg{width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.8;}
+  .mode-btn.active{
+    border-color:var(--accent);
+    color:var(--accent);
+    background:var(--accent-soft);
+    box-shadow:0 0 0 1px var(--accent-soft);
+  }
+  .mode-btn:disabled{opacity:.3; cursor:not-allowed;}
+
+  .mode-panel{min-height:40px;}
+  textarea{
+    width:100%;
+    background:var(--bg-elevated);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:.9rem 1rem;
+    font-size:.97rem;
+    color:var(--fg);
+    font-family:'Fraunces',serif;
+    font-weight:400;
+    line-height:1.55;
+    resize:vertical;
+    min-height:116px;
+    transition:border-color .2s;
+  }
+  textarea:focus{outline:none; border-color:var(--accent-dim);}
+  textarea::placeholder{color:var(--muted-dim); font-style:italic; font-family:'Inter',sans-serif;}
+
+  .rec-box{
+    background:var(--bg-elevated);
+    border:1px dashed var(--line);
+    border-radius:14px;
+    padding:1.1rem;
+    text-align:center;
+  }
+  .rec-preview video, .rec-preview audio{
+    width:100%; border-radius:10px; display:block; background:#000;
+  }
+  .rec-controls{
+    display:flex; gap:.6rem; justify-content:center; margin-top:.9rem; flex-wrap:wrap; align-items:center;
+  }
+  .btn{
+    font-family:inherit;
+    font-size:.86rem;
+    font-weight:600;
+    border-radius:999px;
+    padding:.65rem 1.2rem;
+    cursor:pointer;
+    border:1px solid var(--line);
+    background:var(--bg-elevated);
+    color:var(--fg);
+    display:inline-flex; align-items:center; gap:.45rem;
+    transition:transform .15s, border-color .15s, background .15s;
+  }
+  .btn:hover:not(:disabled){transform:translateY(-1px);}
+  .btn.primary{background:var(--accent); color:#1a1508; border-color:var(--accent);}
+  .btn.primary:hover:not(:disabled){box-shadow:0 4px 18px -4px rgba(232,184,75,.5);}
+  .btn.danger{background:var(--danger); color:#1d0b09; border-color:var(--danger);}
+  .btn:disabled{opacity:.4; cursor:not-allowed; transform:none;}
+  .rec-dot{
+    width:9px; height:9px; border-radius:50%; background:var(--danger);
+    animation:pulse 1.1s infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.25;}}
+  .rec-timer{font-size:.85rem; color:var(--muted); font-variant-numeric:tabular-nums;}
+  .rec-hint{font-size:.78rem; color:var(--muted-dim); margin-top:.7rem;}
+  .upload-fallback{margin-top:.8rem; font-size:.8rem;}
+  .upload-fallback label{color:var(--muted-dim); cursor:pointer; text-decoration:underline; text-underline-offset:3px; text-decoration-color:var(--line);}
+  .upload-fallback label:hover{color:var(--muted);}
+  .upload-fallback input{display:none;}
+
+  /* ---------- Submit ---------- */
+  .submit-row{padding-top:.6rem; text-align:center;}
+  .submit-row .btn.primary{width:100%; justify-content:center; padding:1rem; font-size:.98rem; letter-spacing:.01em;}
+  .submit-sub{font-size:.78rem; color:var(--muted-dim); margin-top:.9rem; font-style:italic;}
+  .status{
+    font-size:.85rem; margin-top:.9rem; text-align:center; color:var(--muted);
+  }
+  .status.error{color:var(--danger);}
+  .status.good{color:var(--good);}
+
+  .done{
+    text-align:center;
+    padding:3.5rem 0;
+  }
+  .done .mark{font-size:1.6rem; margin-bottom:1rem; color:var(--accent);}
+  .done h2{font-size:1.6rem; margin-bottom:.9rem;}
+  .done p{color:var(--muted); max-width:380px; margin:0 auto;}
+  [hidden]{display:none!important;}
+
+  footer{
+    text-align:center;
+    color:var(--muted-dim);
+    font-size:.72rem;
+    padding-top:2.5rem;
+    font-style:italic;
+    opacity:.7;
+  }
+</style>
+</head>
+<body>
+
+<div class="gallery" id="gallery" aria-label="Photos and clips from New York"></div>
+<p class="gallery-note">six months of this city, in no particular order</p>
+
+<div class="wrap">
+
+  <div class="divider reveal"><span class="line"></span><span class="mark">✦</span><span class="line"></span></div>
+
+  <section class="intro reveal">
+    <div class="eyebrow">Before I go</div>
+    <h1>I'm leaving New York on Saturday.</h1>
+    <p class="dropcap">Six months isn't long, but it was long enough that most of the good parts had you in them. Before I pack this city away, I wanted to ask you something — however you'd rather answer it. Say it to a camera, record a voice note, or just write it down.</p>
+    <p>Two questions. No rush, and no wrong way to answer.</p>
+  </section>
+
+  <section class="namefield reveal">
+    <label for="friendName">Sign your name before you start</label>
+    <div class="signature-input">
+      <input type="text" id="friendName" placeholder="your name" autocomplete="name">
+    </div>
+  </section>
+
+  <form id="responseForm">
+
+    <div class="qcard reveal" data-qid="q1">
+      <div class="qcard-head">
+        <span class="qnum">Question one</span>
+        <span class="qcheck">✓ answered</span>
+      </div>
+      <h2>What's a memory or shared experience you'll remember me by?</h2>
+      <div class="modes" role="group" aria-label="How do you want to answer"></div>
+      <div class="mode-panel"></div>
+    </div>
+
+    <div class="qcard reveal" data-qid="q2">
+      <div class="qcard-head">
+        <span class="qnum">Question two · shamelessly fishing for compliments</span>
+        <span class="qcheck">✓ answered</span>
+      </div>
+      <h2>What are some of your favorite things about me?</h2>
+      <div class="modes" role="group" aria-label="How do you want to answer"></div>
+      <div class="mode-panel"></div>
+    </div>
+
+    <div class="submit-row reveal">
+      <button type="submit" class="btn primary" id="submitBtn">Send it my way</button>
+      <p class="submit-sub">it goes straight to me, nowhere else</p>
+      <p class="status" id="formStatus"></p>
+    </div>
+  </form>
+
+  <div class="done" id="doneState" hidden>
+    <div class="mark">✦</div>
+    <h2>Got it. Thank you.</h2>
+    <p>This means more than you know. See you before I'm fully gone — and definitely before I'm back.</p>
+  </div>
+
+  <footer>made with whatever time was left before the flight</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  /* =========================================================
+     1. GALLERY — swap these placeholder frames for real media.
+        Each frame: {type:'placeholder'|'image'|'video', src, caption, gradA, gradB}
+        For a real photo:  {type:'image', src:'media/photo1.jpg', caption:'...'}
+        For a real clip:   {type:'video', src:'media/clip1.mp4', caption:'...'}
+     ========================================================= */
+  const FRAMES = [
+    {type:'placeholder', gradA:'#1a2436', gradB:'#30210f', caption:'the first subway ride that didn’t feel like a maze'},
+    {type:'placeholder', gradA:'#201829', gradB:'#122436', caption:'rooftops, mostly uninvited'},
+    {type:'placeholder', gradA:'#2c1a1a', gradB:'#1a2130', caption:'the bodega guy who knew my order by week two'},
+    {type:'placeholder', gradA:'#17232c', gradB:'#2a1f12', caption:'a lot of walking, not always toward anywhere'},
+    {type:'placeholder', gradA:'#241a2e', gradB:'#132421', caption:'you, mostly — that was the actual good part'},
+  ];
+
+  const galleryEl = document.getElementById('gallery');
+  FRAMES.forEach((f, i) => {
+    const frame = document.createElement('div');
+    frame.className = 'gallery-frame' + (i === 0 ? ' active' : '');
+    const bg = document.createElement('div');
+    if (f.type === 'placeholder') {
+      bg.className = 'bg placeholder';
+      bg.style.setProperty('--grad-a', f.gradA);
+      bg.style.setProperty('--grad-b', f.gradB);
+    } else if (f.type === 'image') {
+      bg.className = 'bg';
+      bg.style.backgroundImage = `url('${f.src}')`;
+    } else if (f.type === 'video') {
+      bg.className = 'bg';
+      const v = document.createElement('video');
+      v.src = f.src; v.autoplay = true; v.muted = true; v.loop = true; v.playsInline = true;
+      v.style.position='absolute'; v.style.inset='0'; v.style.width='100%'; v.style.height='100%'; v.style.objectFit='cover';
+      frame.appendChild(v);
+    }
+    frame.appendChild(bg);
+    const scrim = document.createElement('div'); scrim.className='scrim'; frame.appendChild(scrim);
+    const cap = document.createElement('div'); cap.className='cap'; cap.textContent = f.caption || ''; frame.appendChild(cap);
+    galleryEl.appendChild(frame);
+  });
+  const dotsWrap = document.createElement('div'); dotsWrap.className='gallery-dots';
+  FRAMES.forEach((_, i)=>{ const d=document.createElement('span'); if(i===0) d.className='active'; dotsWrap.appendChild(d); });
+  galleryEl.appendChild(dotsWrap);
+
+  let galleryIdx = 0;
+  const frameEls = galleryEl.querySelectorAll('.gallery-frame');
+  const dotEls = dotsWrap.querySelectorAll('span');
+  setInterval(() => {
+    frameEls[galleryIdx].classList.remove('active');
+    dotEls[galleryIdx].classList.remove('active');
+    galleryIdx = (galleryIdx + 1) % frameEls.length;
+    frameEls[galleryIdx].classList.add('active');
+    dotEls[galleryIdx].classList.add('active');
+  }, 3800);
+
+  /* =========================================================
+     2. SCROLL REVEAL
+     ========================================================= */
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduceMotion) {
+    document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+  } else if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => { if (entry.isIntersecting) { entry.target.classList.add('in'); io.unobserve(entry.target); } });
+    }, {threshold: 0.15, rootMargin: '0px 0px -40px 0px'});
+    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+  } else {
+    document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+  }
+
+  /* =========================================================
+     3. SUPABASE — fill these in once the project exists.
+     ========================================================= */
+  const SUPABASE_URL = 'REPLACE_WITH_SUPABASE_URL';
+  const SUPABASE_ANON_KEY = 'REPLACE_WITH_SUPABASE_ANON_KEY';
+  let supa = null;
+  try {
+    if (!SUPABASE_URL.startsWith('REPLACE') && window.supabase) {
+      supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+  } catch (e) { console.error('Supabase init failed', e); }
+
+  /* =========================================================
+     4. QUESTION RESPONSE WIDGETS (text / video / audio)
+     ========================================================= */
+  const MAX_SECONDS = 90;
+
+  function pickMime(kind) {
+    const candidates = kind === 'video'
+      ? ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4']
+      : ['audio/webm;codecs=opus','audio/webm','audio/mp4'];
+    for (const c of candidates) {
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) return c;
+    }
+    return '';
+  }
+
+  const iconSvg = {
+    text: '<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
+    video:'<svg viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg>',
+    audio:'<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg>',
+  };
+  const labels = {text:'Write', video:'Video', audio:'Voice'};
+
+  const canRecord = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+
+  const state = {}; // qid -> { mode, text, blob, mimeType, ext }
+
+  function isAnswered(qid) {
+    const s = state[qid];
+    if (!s || !s.mode) return false;
+    if (s.mode === 'text') return !!(s.text && s.text.trim());
+    return !!s.blob;
+  }
+  function refreshAnswered(qid) {
+    const card = document.querySelector(`.qcard[data-qid="${qid}"]`);
+    card.classList.toggle('answered', isAnswered(qid));
+  }
+
+  function buildQuestion(qid) {
+    state[qid] = {mode:null, text:'', blob:null, mimeType:'', ext:''};
+    const card = document.querySelector(`.qcard[data-qid="${qid}"]`);
+    const modesEl = card.querySelector('.modes');
+    const panelEl = card.querySelector('.mode-panel');
+
+    ['text','video','audio'].forEach(mode => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'mode-btn';
+      btn.dataset.mode = mode;
+      btn.innerHTML = iconSvg[mode] + '<span>' + labels[mode] + '</span>';
+      if (mode !== 'text' && !canRecord) btn.disabled = true;
+      btn.addEventListener('click', () => setMode(qid, mode, modesEl, panelEl));
+      modesEl.appendChild(btn);
+    });
+
+    setMode(qid, canRecord ? 'text' : 'text', modesEl, panelEl);
+  }
+
+  function setMode(qid, mode, modesEl, panelEl) {
+    if (mode === null) { panelEl.innerHTML = ''; return; }
+    state[qid].mode = mode;
+    modesEl.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    panelEl.innerHTML = '';
+    if (mode === 'text') renderTextPanel(qid, panelEl);
+    else renderRecordPanel(qid, mode, panelEl);
+    refreshAnswered(qid);
+  }
+
+  function renderTextPanel(qid, panelEl) {
+    const ta = document.createElement('textarea');
+    ta.placeholder = 'Type your answer...';
+    ta.value = state[qid].text || '';
+    ta.addEventListener('input', () => { state[qid].text = ta.value; refreshAnswered(qid); });
+    panelEl.appendChild(ta);
+  }
+
+  function renderRecordPanel(qid, kind, panelEl) {
+    const box = document.createElement('div');
+    box.className = 'rec-box';
+
+    const previewWrap = document.createElement('div');
+    previewWrap.className = 'rec-preview';
+    box.appendChild(previewWrap);
+
+    const controls = document.createElement('div');
+    controls.className = 'rec-controls';
+    box.appendChild(controls);
+
+    const hint = document.createElement('div');
+    hint.className = 'rec-hint';
+    hint.textContent = kind === 'video'
+      ? 'Up to 90 seconds. Camera on or off, your call — nobody’s checking.'
+      : 'Up to 90 seconds. Just talk.';
+    box.appendChild(hint);
+
+    const fallback = document.createElement('div');
+    fallback.className = 'upload-fallback';
+    const flabel = document.createElement('label');
+    flabel.textContent = 'or upload a ' + kind + ' file instead';
+    const finput = document.createElement('input');
+    finput.type = 'file';
+    finput.accept = kind === 'video' ? 'video/*' : 'audio/*';
+    finput.id = 'fb-' + qid + '-' + kind;
+    flabel.setAttribute('for', finput.id);
+    fallback.appendChild(flabel);
+    fallback.appendChild(finput);
+    box.appendChild(fallback);
+
+    panelEl.appendChild(box);
+
+    let mediaStream = null, recorder = null, chunks = [], timerInt = null, startedAt = 0;
+
+    function startBtn() {
+      controls.innerHTML = '';
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn primary';
+      b.textContent = kind === 'video' ? 'Record video' : 'Record voice note';
+      b.addEventListener('click', beginRecording);
+      controls.appendChild(b);
+    }
+
+    async function beginRecording() {
+      try {
+        const constraints = kind === 'video' ? {video:{facingMode:'user'}, audio:true} : {audio:true};
+        mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (e) {
+        hint.textContent = 'Camera/mic access was blocked — use "upload a file instead" below.';
+        hint.style.color = 'var(--danger)';
+        return;
+      }
+      previewWrap.innerHTML = '';
+      if (kind === 'video') {
+        const v = document.createElement('video');
+        v.autoplay = true; v.muted = true; v.playsInline = true;
+        v.srcObject = mediaStream;
+        previewWrap.appendChild(v);
+      } else {
+        const d = document.createElement('div');
+        d.style.textAlign='center'; d.style.padding='1.2rem 0'; d.style.color='var(--accent)'; d.style.fontSize='1.3rem';
+        d.textContent = '🎙 listening...';
+        previewWrap.appendChild(d);
+      }
+
+      const mimeType = pickMime(kind);
+      chunks = [];
+      try {
+        recorder = mimeType ? new MediaRecorder(mediaStream, {mimeType}) : new MediaRecorder(mediaStream);
+      } catch (e) {
+        recorder = new MediaRecorder(mediaStream);
+      }
+      recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+      recorder.onstop = onRecordingStop;
+      recorder.start();
+      startedAt = Date.now();
+
+      controls.innerHTML = '';
+      const dot = document.createElement('span'); dot.className = 'rec-dot';
+      const timer = document.createElement('span'); timer.className = 'rec-timer'; timer.textContent = '0:00';
+      const stopBtn = document.createElement('button');
+      stopBtn.type = 'button'; stopBtn.className = 'btn danger'; stopBtn.textContent = 'Stop';
+      stopBtn.addEventListener('click', () => recorder.state === 'recording' && recorder.stop());
+      controls.appendChild(dot); controls.appendChild(timer); controls.appendChild(stopBtn);
+
+      timerInt = setInterval(() => {
+        const secs = Math.floor((Date.now() - startedAt) / 1000);
+        const m = Math.floor(secs/60), s = secs%60;
+        timer.textContent = m + ':' + String(s).padStart(2,'0');
+        if (secs >= MAX_SECONDS && recorder.state === 'recording') recorder.stop();
+      }, 250);
+    }
+
+    function onRecordingStop() {
+      clearInterval(timerInt);
+      mediaStream.getTracks().forEach(t => t.stop());
+      const usedMime = recorder.mimeType || (kind === 'video' ? 'video/webm' : 'audio/webm');
+      const blob = new Blob(chunks, {type: usedMime});
+      const ext = usedMime.includes('mp4') ? (kind==='video'?'mp4':'m4a') : 'webm';
+      state[qid].blob = blob;
+      state[qid].mimeType = usedMime;
+      state[qid].ext = ext;
+      const url = URL.createObjectURL(blob);
+      previewWrap.innerHTML = '';
+      const el = document.createElement(kind === 'video' ? 'video' : 'audio');
+      el.src = url; el.controls = true;
+      previewWrap.appendChild(el);
+
+      controls.innerHTML = '';
+      const retake = document.createElement('button');
+      retake.type = 'button'; retake.className = 'btn'; retake.textContent = 'Retake';
+      retake.addEventListener('click', () => { state[qid].blob = null; previewWrap.innerHTML=''; refreshAnswered(qid); startBtn(); });
+      controls.appendChild(retake);
+      refreshAnswered(qid);
+    }
+
+    finput.addEventListener('change', () => {
+      const f = finput.files[0];
+      if (!f) return;
+      state[qid].blob = f;
+      state[qid].mimeType = f.type || (kind === 'video' ? 'video/mp4' : 'audio/mpeg');
+      state[qid].ext = (f.name.split('.').pop() || (kind === 'video' ? 'mp4' : 'm4a'));
+      previewWrap.innerHTML = '';
+      const el = document.createElement(kind === 'video' ? 'video' : 'audio');
+      el.src = URL.createObjectURL(f); el.controls = true;
+      previewWrap.appendChild(el);
+      refreshAnswered(qid);
+    });
+
+    startBtn();
+  }
+
+  buildQuestion('q1');
+  buildQuestion('q2');
+
+  /* =========================================================
+     5. SUBMIT
+     ========================================================= */
+  const form = document.getElementById('responseForm');
+  const statusEl = document.getElementById('formStatus');
+  const submitBtn = document.getElementById('submitBtn');
+
+  function setStatus(msg, kind) {
+    statusEl.textContent = msg;
+    statusEl.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('friendName').value.trim();
+    if (!name) { setStatus('Tell me who you are first 🙂', 'error'); return; }
+
+    const payload = {friend_name: name, created_at: new Date().toISOString()};
+    const uploads = [];
+
+    for (const qid of ['q1','q2']) {
+      const s = state[qid];
+      if (!s.mode) { setStatus('Answer both questions however you like — even one line is fine.', 'error'); return; }
+      if (s.mode === 'text') {
+        if (!s.text || !s.text.trim()) { setStatus('That answer looks empty — add a line or switch to video/voice.', 'error'); return; }
+        payload[qid + '_type'] = 'text';
+        payload[qid + '_text'] = s.text.trim();
+      } else {
+        if (!s.blob) { setStatus('Finish recording (or upload a file) for both questions first.', 'error'); return; }
+        payload[qid + '_type'] = s.mode;
+        uploads.push({qid, blob: s.blob, ext: s.ext});
+      }
+    }
+
+    if (!supa) {
+      setStatus('This page isn’t connected yet — tell Shubham.', 'error');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    setStatus('Sending...', '');
+
+    try {
+      const safeName = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) || 'friend';
+      const stamp = Date.now();
+      for (const u of uploads) {
+        const path = `${safeName}-${stamp}/${u.qid}.${u.ext}`;
+        const { error: upErr } = await supa.storage.from('responses').upload(path, u.blob, {
+          contentType: u.blob.type || undefined,
+          upsert: false,
+        });
+        if (upErr) throw upErr;
+        payload[u.qid + '_file_path'] = path;
+      }
+
+      const { error: insErr } = await supa.from('responses').insert(payload);
+      if (insErr) throw insErr;
+
+      form.hidden = true;
+      document.getElementById('doneState').hidden = false;
+      document.getElementById('doneState').classList.add('reveal');
+      requestAnimationFrame(() => document.getElementById('doneState').classList.add('in'));
+      window.scrollTo({top: document.getElementById('doneState').offsetTop - 60, behavior:'smooth'});
+    } catch (err) {
+      console.error(err);
+      setStatus('Something went wrong sending that — try again?', 'error');
+      submitBtn.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>
