@@ -467,11 +467,11 @@
   /* =========================================================
      3. SUPABASE — fill these in once the project exists.
      ========================================================= */
-  const SUPABASE_URL = 'REPLACE_WITH_SUPABASE_URL';
-  const SUPABASE_ANON_KEY = 'REPLACE_WITH_SUPABASE_ANON_KEY';
+  const SUPABASE_URL = 'https://keyogsilqjdnivwzjmlv.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_qoVauUWpUaD0NKa999s-pQ_KsULvU8M';
   let supa = null;
   try {
-    if (!SUPABASE_URL.startsWith('REPLACE') && window.supabase) {
+    if (!SUPABASE_ANON_KEY.startsWith('REPLACE') && window.supabase) {
       supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
   } catch (e) { console.error('Supabase init failed', e); }
