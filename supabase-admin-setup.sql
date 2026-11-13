@@ -13,6 +13,7 @@ drop table if exists public.responses cascade;
 create table public.questions (
   id uuid primary key default gen_random_uuid(),
   prompt text not null,
+  subtitle text,
   position integer not null default 0,
   active boolean not null default true,
   created_at timestamptz not null default now()

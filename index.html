@@ -108,8 +108,7 @@
     will-change:transform;
   }
   .mosaic.layout-grid .mosaic-item:hover, .mosaic.layout-grid .mosaic-item:focus-visible, .mosaic.layout-grid .mosaic-item:active,
-  .mosaic.layout-flow .mosaic-item:hover, .mosaic.layout-flow .mosaic-item:focus-visible, .mosaic.layout-flow .mosaic-item:active,
-  .mosaic-item.zoomed{
+  .mosaic.layout-flow .mosaic-item:hover, .mosaic.layout-flow .mosaic-item:focus-visible, .mosaic.layout-flow .mosaic-item:active{
     transform:scale(1.1);
     z-index:5;
     box-shadow:0 16px 38px -10px rgba(0,0,0,.6);
@@ -137,8 +136,7 @@
   }
   .mosaic-item:hover .mosaic-cap,
   .mosaic-item:focus-visible .mosaic-cap,
-  .mosaic-item:active .mosaic-cap,
-  .mosaic-item.zoomed .mosaic-cap{
+  .mosaic-item:active .mosaic-cap{
     opacity:1;
     transform:translateY(0);
   }
@@ -152,15 +150,47 @@
   }
   .mosaic-mute:hover{ opacity:1; transform:scale(1.1); }
   .mosaic-mute svg{ width:13px; height:13px; stroke:currentColor; fill:none; stroke-width:2; }
-  .mosaic-note{
-    text-align:center;
-    font-size:.72rem;
-    color:var(--muted-dim);
-    padding:10px 0 0;
-    letter-spacing:.03em;
-    font-style:italic;
+  .mosaic-zoom{
+    position:absolute; top:6px; left:6px; z-index:3;
+    width:26px; height:26px; border-radius:50%;
+    background:rgba(10,8,12,.72); border:none; color:#f4e9d2;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; opacity:.85;
+    transition:opacity .2s, transform .2s;
   }
+  .mosaic-zoom:hover{ opacity:1; transform:scale(1.1); }
+  .mosaic-zoom svg{ width:13px; height:13px; stroke:currentColor; fill:none; stroke-width:2; }
 
+  /* ---------- lightbox: opened by the zoom icon or a double-click/tap,
+     on both mobile and desktop, independent of the hover-enlarge above ---------- */
+  .lightbox{
+    position:fixed; inset:0; z-index:999;
+    background:rgba(5,4,7,.88);
+    display:flex; align-items:center; justify-content:center;
+    padding:24px;
+    opacity:0; visibility:hidden;
+    transition:opacity .25s ease, visibility 0s linear .25s;
+  }
+  .lightbox.open{
+    opacity:1; visibility:visible;
+    transition:opacity .25s ease;
+  }
+  .lightbox-media{
+    max-width:70vw; max-height:70vh;
+    width:auto; height:auto;
+    border-radius:10px;
+    box-shadow:0 20px 60px -10px rgba(0,0,0,.7);
+    display:block;
+  }
+  .lightbox-close{
+    position:fixed; top:18px; right:18px; z-index:1000;
+    width:38px; height:38px; border-radius:50%;
+    background:rgba(10,8,12,.8); border:none; color:#f4e9d2;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .lightbox-close:hover{ background:rgba(10,8,12,.95); }
+  .lightbox-close svg{ width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; }
   /* ---------- divider ---------- */
   .divider{
     display:flex; align-items:center; justify-content:center; gap:10px;
@@ -243,6 +273,8 @@
   }
   .qcard.answered .qcheck{opacity:1;}
   .qcard h2{font-size:1.24rem; margin-bottom:1.2rem; font-weight:500; line-height:1.35;}
+  .qcard h2.has-sub{margin-bottom:.35rem;}
+  .qcard .qsub{font-size:.86rem; color:var(--muted); margin:0 0 1.2rem; line-height:1.45; font-style:italic;}
   .modes{display:flex; gap:.55rem; margin-bottom:1.1rem; flex-wrap:wrap;}
   .mode-btn{
     flex:1 1 0;
@@ -438,13 +470,20 @@
     <div class="eyebrow" id="txt-eyebrow">Before I go</div>
     <h1 id="txt-heading">I'm leaving New York on Saturday.</h1>
     <p class="dropcap" id="txt-intro1">Six months isn't long, but it was long enough that most of the good parts had you in them. Before I pack this city away, I wanted to ask you something — however you'd rather answer it. Say it to a camera, record a voice note, or just write it down.</p>
-    <p id="txt-intro2">Two questions. No rush, and no wrong way to answer.</p>
+    <p id="txt-intro2">Below are a few memories from New York. Beyond the gallery, you'll find a few questions I have for you — I'd love to know the answer.</p>
   </section>
 
 </div>
 
 <div class="mosaic-wrap">
   <div class="mosaic" id="mosaic" aria-label="Photos from New York"></div>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <button type="button" class="lightbox-close" id="lightboxClose" aria-label="Close">
+    <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>
+  </button>
+  <div id="lightboxContent"></div>
 </div>
 
 <div class="wrap">
@@ -464,7 +503,7 @@
 
     <label class="share-opt">
       <input type="checkbox" id="okToShare">
-      <span>It's okay to share my answer with others reading this page (my call either way — he still decides what actually gets posted)</span>
+      <span id="txt-shareoptlabel">It's okay to share my answer with others reading this page (my call either way — he still decides what actually gets posted)</span>
     </label>
 
     <div class="submit-row reveal">
@@ -517,15 +556,15 @@
 
   <section class="photoshare-wrap reveal" id="photoShareSection" hidden>
     <div class="divider"><span class="line"></span><span class="mark">✦</span><span class="line"></span></div>
-    <h2 class="shared-heading">Photos from friends</h2>
-    <p class="shared-sub">things people saw that I never got a copy of</p>
+    <h2 class="shared-heading" id="txt-psheading">Photos from friends</h2>
+    <p class="shared-sub" id="txt-pssub">things people saw that I never got a copy of</p>
     <div class="pshare-grid" id="photoShareGrid"></div>
   </section>
 
   <section class="shared-wrap reveal" id="sharedSection" hidden>
     <div class="divider"><span class="line"></span><span class="mark">✦</span><span class="line"></span></div>
-    <h2 class="shared-heading">Shared answers</h2>
-    <p class="shared-sub">a few people said it was okay to share this</p>
+    <h2 class="shared-heading" id="txt-sharedheading">Shared answers</h2>
+    <p class="shared-sub" id="txt-sharedsub">a few people said it was okay to share this</p>
     <div class="shared-list" id="sharedList"></div>
   </section>
 
@@ -558,6 +597,7 @@
   const mosaicEl = document.getElementById('mosaic');
   const mutedIcon = '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 9l5 5M21 9l-5 5" stroke-linecap="round"/></svg>';
   const loudIcon = '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 8a5 5 0 010 8M19 5a9 9 0 010 14" stroke-linecap="round"/></svg>';
+  const zoomIcon = '<svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
   // Column counts for the grid/flow layouts: admin-configured mobile/desktop
   // base values (site_content.gallery_cols_mobile/_desktop), with a little
@@ -577,24 +617,34 @@
     mosaicEl.style.setProperty('--cols', computeCols(frameCount));
   }
 
-  // On touch devices there's no hover, so tapping a photo/video toggles the
-  // same enlarged look desktop gets on hover (same scale, so same max size).
-  const isTouch = !window.matchMedia('(hover: hover)').matches;
-  function shrinkScatterItem(item) {
-    delete item.dataset.zoomed;
-    item.style.transform = `rotate(${item.dataset.baseRot || 0}deg)`;
-    item.style.zIndex = '';
+  // The zoom icon (or a double-click/double-tap) opens a photo/video at
+  // ~70% of the viewport, in a lightbox overlay — on both mobile and
+  // desktop. This is separate from, and doesn't change, the hover-enlarge
+  // effect above (desktop hover behavior is untouched).
+  const lightboxEl = document.getElementById('lightbox');
+  const lightboxContent = document.getElementById('lightboxContent');
+  function openLightbox(frame) {
+    lightboxContent.innerHTML = '';
+    let media;
+    if (frame.type === 'video') {
+      media = document.createElement('video');
+      media.src = frame.src; media.controls = true; media.autoplay = true;
+      media.playsInline = true; media.loop = true;
+    } else {
+      media = document.createElement('img');
+      media.src = frame.src; media.alt = frame.caption || '';
+    }
+    media.className = 'lightbox-media';
+    lightboxContent.appendChild(media);
+    lightboxEl.classList.add('open');
   }
-  function closeAllZoomed(except) {
-    mosaicEl.querySelectorAll('.mosaic-item').forEach(other => {
-      if (other === except) return;
-      if (other.dataset.zoomed) shrinkScatterItem(other);
-      other.classList.remove('zoomed');
-    });
+  function closeLightbox() {
+    lightboxEl.classList.remove('open');
+    lightboxContent.innerHTML = '';
   }
-  document.addEventListener('click', (e) => {
-    if (!mosaicEl.contains(e.target)) closeAllZoomed();
-  });
+  document.getElementById('lightboxClose').addEventListener('click', closeLightbox);
+  lightboxEl.addEventListener('click', (e) => { if (e.target === lightboxEl) closeLightbox(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
 
   function layoutScatterPositions() {
     const items = Array.from(mosaicEl.querySelectorAll('.mosaic-item'));
@@ -662,6 +712,14 @@
         media.src = f.src; media.alt = f.caption || ''; media.loading = 'lazy'; media.decoding = 'async';
         item.appendChild(media);
       }
+      const zoomBtn = document.createElement('button');
+      zoomBtn.type = 'button';
+      zoomBtn.className = 'mosaic-zoom';
+      zoomBtn.setAttribute('aria-label', 'Enlarge');
+      zoomBtn.innerHTML = zoomIcon;
+      zoomBtn.addEventListener('click', (e) => { e.stopPropagation(); openLightbox(f); });
+      item.appendChild(zoomBtn);
+
       if (f.caption) {
         const cap = document.createElement('div');
         cap.className = 'mosaic-cap';
@@ -672,21 +730,7 @@
         item.addEventListener('mouseenter', () => { item.style.transform = 'rotate(0deg) scale(1.2)'; item.style.zIndex = '5'; });
         item.addEventListener('mouseleave', () => { item.style.transform = `rotate(${item.dataset.baseRot || 0}deg)`; item.style.zIndex = ''; });
       }
-      if (isTouch) {
-        item.addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (layout === 'scatter') {
-            const wasZoomed = !!item.dataset.zoomed;
-            closeAllZoomed(item);
-            if (wasZoomed) { shrinkScatterItem(item); }
-            else { item.dataset.zoomed = '1'; item.style.transform = 'rotate(0deg) scale(1.2)'; item.style.zIndex = '5'; }
-          } else {
-            const wasZoomed = item.classList.contains('zoomed');
-            closeAllZoomed(item);
-            item.classList.toggle('zoomed', !wasZoomed);
-          }
-        });
-      }
+      item.addEventListener('dblclick', (e) => { e.stopPropagation(); openLightbox(f); });
       mosaicEl.appendChild(item);
     });
     if (layout === 'grid' || layout === 'flow') applyMosaicCols(frames.length);
@@ -747,8 +791,8 @@
         is live in the questions table, if reachable.
      ========================================================= */
   const FALLBACK_QUESTIONS = [
-    {id: null, prompt: "What's a memory or shared experience you'll remember me by?"},
-    {id: null, prompt: "What are some of your favorite things about me?"},
+    {id: null, prompt: "What's a memory or shared experience you'll remember me by?", subtitle: ''},
+    {id: null, prompt: "What are some of your favorite things about me?", subtitle: ''},
   ];
   const MAX_SECONDS = 90;
 
@@ -825,6 +869,13 @@
 
       card.appendChild(head);
       card.appendChild(h2);
+      if (q.subtitle && q.subtitle.trim()) {
+        h2.classList.add('has-sub');
+        const sub = document.createElement('p');
+        sub.className = 'qsub';
+        sub.textContent = q.subtitle;
+        card.appendChild(sub);
+      }
       card.appendChild(modesEl);
       card.appendChild(panelEl);
       container.appendChild(card);
@@ -1121,14 +1172,24 @@
         'txt-eyebrow': d.eyebrow, 'txt-heading': d.heading,
         'txt-intro1': d.intro_p1, 'txt-intro2': d.intro_p2,
         'txt-namelabel': d.name_label, 'txt-submitsub': d.submit_sub,
+        'txt-shareoptlabel': d.share_opt_label,
         'txt-doneheading': d.done_heading, 'txt-donebody': d.done_body,
         'txt-footer': d.footer,
         'txt-owheading': d.ow_heading, 'txt-owsub': d.ow_sub,
         'txt-owtriggerlabel': d.ow_trigger_label, 'txt-owdone': d.ow_done_text,
         'txt-pdheading': d.pd_heading, 'txt-pdsub': d.pd_sub, 'txt-pddone': d.pd_done_text,
+        'txt-psheading': d.photoshare_heading, 'txt-pssub': d.photoshare_sub,
+        'txt-sharedheading': d.shared_heading, 'txt-sharedsub': d.shared_sub,
       };
+      // A field that's missing from site_content entirely (never saved)
+      // leaves the hardcoded default in place; one explicitly cleared to
+      // '' in admin hides that text's element rather than showing it blank.
       Object.keys(map).forEach(id => {
-        if (map[id]) { const el = document.getElementById(id); if (el) el.textContent = map[id]; }
+        const el = document.getElementById(id);
+        if (!el) return;
+        const val = map[id];
+        if (val) { el.textContent = val; el.hidden = false; }
+        else if (val === '') { el.hidden = true; }
       });
       if (d.submit_label) submitBtn.textContent = d.submit_label;
       if (d.ow_trigger_placeholder) document.getElementById('owTrigger').placeholder = d.ow_trigger_placeholder;
@@ -1173,7 +1234,7 @@
       const { data, error } = await supa.from('questions').select('*')
         .eq('active', true).order('position', {ascending: true});
       if (error || !data || !data.length) return;
-      buildQuestionsUI(data.map(q => ({id: q.id, prompt: q.prompt})));
+      buildQuestionsUI(data.map(q => ({id: q.id, prompt: q.prompt, subtitle: q.subtitle || ''})));
     } catch (e) { console.error('questions load failed', e); }
   }
 
