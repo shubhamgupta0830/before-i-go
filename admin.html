@@ -345,6 +345,22 @@
     {key:'flow', title:'Flow', desc:'Masonry columns, full uncropped photos at their own aspect ratio. Grows taller as you add more.'},
     {key:'scatter', title:'Scatter', desc:'A loose, overlapping polaroid-style collage with a slight tilt. Playful, less tidy.'},
   ];
+  // Mirrors the hardcoded copy in index.html exactly, so this form
+  // always shows what's actually live, even before site_content has
+  // ever been saved -- not a blank form that LOOKS like there's no text.
+  const DEFAULT_TEXT = {
+    eyebrow: 'Before I go',
+    heading: "I'm leaving New York on Saturday.",
+    intro_p1: "Six months isn't long, but it was long enough that most of the good parts had you in them. Before I pack this city away, I wanted to ask you something — however you'd rather answer it. Say it to a camera, record a voice note, or just write it down.",
+    intro_p2: 'Two questions. No rush, and no wrong way to answer.',
+    name_label: 'Sign your name before you start',
+    submit_label: 'Send it my way',
+    submit_sub: 'it goes straight to me, nowhere else',
+    done_heading: 'Got it. Thank you.',
+    done_body: "This means more than you know. See you before I'm fully gone — and definitely before I'm back.",
+    footer: 'made with whatever time was left before the flight',
+    mosaic_note: "six months of this city — hover one for a closer look",
+  };
 
   let siteData = {};
 
@@ -375,7 +391,8 @@
       label.textContent = f.label;
       const input = document.createElement(f.type === 'textarea' ? 'textarea' : 'input');
       if (f.type !== 'textarea') input.type = 'text';
-      input.value = siteData[f.key] || '';
+      if (siteData[f.key] == null) siteData[f.key] = DEFAULT_TEXT[f.key] || '';
+      input.value = siteData[f.key];
       input.addEventListener('input', () => { siteData[f.key] = input.value; });
       field.appendChild(label); field.appendChild(input);
       wrap.appendChild(field);
